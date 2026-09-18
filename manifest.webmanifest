@@ -1,6 +1,6 @@
 {
-  "name": "AeroCompass - Mobile Compass & Level",
-  "short_name": "Compass",
+  "name": "COMPASS",
+  "short_name": "COMPASS",
   "description": "High-precision mobile compass, dual-axis inclinometer bubble level, and GPS telemetry for iOS & Android.",
   "start_url": "./index.html",
   "scope": "./",

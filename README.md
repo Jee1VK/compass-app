@@ -1,4 +1,4 @@
-# 🧭 AeroCompass - High-Precision Mobile Compass & Inclinometer
+# 🧭 COMPASS - High-Precision Mobile Compass & Inclinometer
 
 A sleek, downloadable **Compass & Inclinometer Progressive Web App (PWA)** built for iOS (Safari) and Android (Chrome / Samsung Internet), with 100% offline support and zero ads or bloat.
 

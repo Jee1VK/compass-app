@@ -1,5 +1,5 @@
 /**
- * AeroCompass - High Precision Mobile Compass & Inclinometer
+ * COMPASS - High Precision Mobile Compass & Inclinometer
  * Built for iOS Safari, Android Chrome, and Desktop Browsers.
  */
 
@@ -566,7 +566,7 @@
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
-        showToast('Thank you for installing AeroCompass!');
+        showToast('Thank you for installing COMPASS!');
       }
       deferredPrompt = null;
       btnInstallApp.classList.add('hidden');
@@ -577,7 +577,7 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js')
-        .then((reg) => console.log('AeroCompass ServiceWorker registered:', reg.scope))
+        .then((reg) => console.log('COMPASS ServiceWorker registered:', reg.scope))
         .catch((err) => console.log('ServiceWorker registration error:', err));
     });
   }
