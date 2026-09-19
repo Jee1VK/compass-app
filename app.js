@@ -455,6 +455,29 @@
   }
 
   // --- GPS Geolocation Engine ---
+  function updateGpsReadouts(position) {
+    const coords = position.coords;
+    const lat = coords.latitude;
+    const lng = coords.longitude;
+    const alt = coords.altitude;
+    const acc = coords.accuracy;
+
+    // Formatted DMS
+    gpsLat.textContent = toDMS(lat, 'lat');
+    gpsLng.textContent = toDMS(lng, 'lng');
+
+    // Decimal Degrees
+    gpsLatDec.textContent = `${lat.toFixed(5)}°`;
+    gpsLngDec.textContent = `${lng.toFixed(5)}°`;
+
+    // Altitude
+    gpsAlt.textContent = (alt !== null && alt !== undefined && !isNaN(alt)) ? `${Math.round(alt)} m` : '-- m';
+    gpsAccuracy.textContent = `Accuracy: ±${Math.round(acc)} m`;
+
+    // Approximate Magnetic Declination (Simple model)
+    calculateDeclination(lat, lng);
+  }
+
   function initGPS() {
     if (!('geolocation' in navigator)) {
       gpsLat.textContent = 'GPS Unavailable';
@@ -469,28 +492,7 @@
     };
 
     navigator.geolocation.watchPosition(
-      (position) => {
-        const coords = position.coords;
-        const lat = coords.latitude;
-        const lng = coords.longitude;
-        const alt = coords.altitude;
-        const acc = coords.accuracy;
-
-        // Formatted DMS
-        gpsLat.textContent = toDMS(lat, 'lat');
-        gpsLng.textContent = toDMS(lng, 'lng');
-
-        // Decimal Degrees
-        gpsLatDec.textContent = `${lat.toFixed(5)}°`;
-        gpsLngDec.textContent = `${lng.toFixed(5)}°`;
-
-        // Altitude
-        gpsAlt.textContent = (alt !== null && alt !== undefined && !isNaN(alt)) ? `${Math.round(alt)} m` : '-- m';
-        gpsAccuracy.textContent = `Accuracy: ±${Math.round(acc)} m`;
-
-        // Approximate Magnetic Declination (Simple model)
-        calculateDeclination(lat, lng);
-      },
+      updateGpsReadouts,
       (error) => {
         console.warn('GPS error:', error.message);
         gpsLatDec.textContent = 'Location disabled';
@@ -498,6 +500,25 @@
       },
       options
     );
+
+    // Allow user to tap telemetry panel to re-fetch GPS
+    const telemetryGrid = document.querySelector('.telemetry-grid');
+    if (telemetryGrid) {
+      telemetryGrid.addEventListener('click', () => {
+        showToast('Refreshing GPS Position...');
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            updateGpsReadouts(pos);
+            showToast('GPS Position Updated');
+          },
+          (err) => {
+            console.warn('GPS refresh error:', err);
+            showToast('Could not refresh GPS');
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      });
+    }
   }
 
   function toDMS(deg, type) {
@@ -505,8 +526,8 @@
     const absolute = Math.abs(deg);
     const degrees = Math.floor(absolute);
     const minutesNotTruncated = (absolute - degrees) * 60;
-    const minutes = Math.floor(minutesNotTruncated);
-    const seconds = Math.floor((minutesNotTruncated - minutes) * 60);
+    const minutes = Math.min(Math.floor(minutesNotTruncated), 59);
+    const seconds = Math.min(Math.floor((minutesNotTruncated - minutes) * 60), 59);
 
     const direction = type === 'lat'
       ? (deg >= 0 ? 'N' : 'S')
@@ -608,7 +629,19 @@
   btnCopyCoords.addEventListener('click', async () => {
     const textToCopy = `Coordinates: ${gpsLat.textContent}, ${gpsLng.textContent} (${gpsLatDec.textContent}, ${gpsLngDec.textContent}) | Altitude: ${gpsAlt.textContent}`;
     try {
-      await navigator.clipboard.writeText(textToCopy);
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       showToast('Coordinates Copied to Clipboard!');
     } catch (e) {
       showToast('Could not copy coordinates');
@@ -660,7 +693,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.5.0')
+      navigator.serviceWorker.register('sw.js?v=3.6.0')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update

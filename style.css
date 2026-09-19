@@ -748,6 +748,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 2px 4px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.telemetry-item:active {
+  background: rgba(255, 255, 255, 0.06);
+  transform: scale(0.98);
 }
 
 .telemetry-item-header {
