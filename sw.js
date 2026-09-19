@@ -1,24 +1,24 @@
-const CACHE_NAME = 'kuberan-compass-v3.6.0';
+const CACHE_NAME = 'kuberan-compass-v3.7.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=3.6.0',
+  './style.css?v=3.7.0',
   './style.css',
-  './qrcode.min.js?v=3.6.0',
+  './qrcode.min.js?v=3.7.0',
   './qrcode.min.js',
-  './app.js?v=3.6.0',
+  './app.js?v=3.7.0',
   './app.js',
-  './manifest.webmanifest?v=3.6.0',
+  './manifest.webmanifest?v=3.7.0',
   './manifest.webmanifest',
   './assets/images/kuberan_logo_white_bg.png',
   './assets/images/kuberan_logo_transparent.png',
-  './icon.svg?v=3.6.0',
+  './icon.svg?v=3.7.0',
   './icon.svg',
-  './icon-192.png?v=3.6.0',
+  './icon-192.png?v=3.7.0',
   './icon-192.png',
-  './icon-512.png?v=3.6.0',
+  './icon-512.png?v=3.7.0',
   './icon-512.png',
-  './apple-touch-icon.png?v=3.6.0',
+  './apple-touch-icon.png?v=3.7.0',
   './apple-touch-icon.png'
 ];
 
@@ -35,12 +35,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((key) => {
-          // Delete ALL older caches
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
     }).then(() => self.clients.claim())
   );
@@ -76,18 +71,28 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } else {
-    // Cache-First with Network Revalidation for assets
+    // Cache-First with Stale-while-revalidate for assets
     event.respondWith(
       caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (cachedResponse) {
+          // Update in background if online
+          fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const copy = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            }
+          }).catch(() => {});
+          return cachedResponse;
+        }
+
+        // Not in cache, fetch from network
+        return fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const copy = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           }
           return networkResponse;
-        }).catch(() => {/* offline fallback */});
-
-        return cachedResponse || fetchPromise;
+        });
       })
     );
   }

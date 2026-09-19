@@ -152,6 +152,7 @@ body {
   width: 100%;
   max-width: 480px;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   padding: calc(var(--safe-top) + 6px) 12px calc(var(--safe-bottom) + 12px) 12px;
@@ -341,7 +342,11 @@ body {
   border: none;
   font-weight: 700;
   font-size: 0.8rem;
-  padding: 8px 16px;
+  padding: 8px 18px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 10px;
   cursor: pointer;
   box-shadow: 0 2px 8px var(--accent-glow);
@@ -1028,3 +1033,44 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* ----------------- Ultra-narrow screens (< 360px) ----------------- */
+@media (max-width: 360px) {
+  .app-container {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .app-header {
+    gap: 4px;
+  }
+  .brand {
+    gap: 4px;
+  }
+  .kuberan-header-logo {
+    width: 26px;
+    height: 26px;
+  }
+  .app-name {
+    font-size: 0.88rem;
+  }
+  .app-sub {
+    font-size: 0.54rem;
+  }
+  .header-actions {
+    gap: 4px;
+  }
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+  .icon-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+  .mode-pill {
+    font-size: 0.58rem;
+  }
+}
+

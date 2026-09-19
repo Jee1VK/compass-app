@@ -165,10 +165,10 @@
 
       const isNorth = (deg === 0);
       const colA = isNorth ? 'var(--accent-north)' : 'var(--accent-cyan)';
-      const colB = isNorth ? '#991b1b' : 'rgba(180, 130, 60, 0.45)';
+      const colB = isNorth ? '#991b1b' : 'var(--dial-ticks)';
 
       svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${rightX.toFixed(1)},${rightY.toFixed(1)}" fill="${colA}" fill-opacity="0.85"/>`;
-      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${leftX.toFixed(1)},${leftY.toFixed(1)}" fill="${colB}" fill-opacity="0.75"/>`;
+      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${leftX.toFixed(1)},${leftY.toFixed(1)}" fill="${colB}" fill-opacity="0.55"/>`;
     });
 
     const secondaryPoints = [45, 135, 225, 315];
@@ -186,8 +186,8 @@
       const rightX = cx + rBase * Math.cos(rightRad);
       const rightY = cy + rBase * Math.sin(rightRad);
 
-      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${rightX.toFixed(1)},${rightY.toFixed(1)}" fill="var(--accent-cyan)" fill-opacity="0.6"/>`;
-      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${leftX.toFixed(1)},${leftY.toFixed(1)}" fill="rgba(140, 95, 40, 0.35)" fill-opacity="0.6"/>`;
+      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${rightX.toFixed(1)},${rightY.toFixed(1)}" fill="var(--accent-cyan)" fill-opacity="0.55"/>`;
+      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${leftX.toFixed(1)},${leftY.toFixed(1)}" fill="var(--dial-ticks)" fill-opacity="0.45"/>`;
     });
 
     // Center Crosshairs Accent
@@ -368,6 +368,14 @@
   }
 
   function handleDeviceOrientation(event) {
+    const hasValidOrientation = (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) ||
+                                (event.alpha !== null && event.alpha !== undefined) ||
+                                (event.beta !== null && event.beta !== undefined);
+
+    if (!hasValidOrientation) {
+      return; // Ignore empty dummy events from desktop browsers without hardware sensors
+    }
+
     hasSensorData = true;
     sensorStatus.textContent = 'Hardware active';
     // Ensure permission banner is dismissed and saved as enabled once data arrives
@@ -389,16 +397,21 @@
       }
     }
 
+    // Handle landscape/portrait orientation adjustments (modern standard + legacy fallback)
+    const orientationAngle = (screen.orientation && typeof screen.orientation.angle === 'number')
+      ? screen.orientation.angle
+      : (typeof window.orientation === 'number' ? window.orientation : 0);
+
+    // Compensate compass heading for device rotation (e.g. landscape mode)
+    if (orientationAngle) {
+      heading = ((heading + orientationAngle) % 360 + 360) % 360;
+    }
+
     updateHeading(heading);
 
     // Pitch & Roll for bubble level
     let p = event.beta || 0;  // Front-to-back tilt in [-180, 180]
     let r = event.gamma || 0; // Left-to-right tilt in [-90, 90]
-
-    // Handle landscape/portrait orientation adjustments (modern standard + legacy fallback)
-    const orientationAngle = (screen.orientation && typeof screen.orientation.angle === 'number')
-      ? screen.orientation.angle
-      : (typeof window.orientation === 'number' ? window.orientation : 0);
 
     if (orientationAngle === 90) {
       const temp = p; p = -r; r = temp;
@@ -540,8 +553,10 @@
   function calculateDeclination(lat, lng) {
     // World Magnetic Model approximation for rough declination estimation
     const decl = (lng - 80) * Math.sin(lat * Math.PI / 180) * 0.15;
-    magneticDeclination = Math.round(decl * 10) / 10;
-    gpsDeclination.textContent = `${magneticDeclination >= 0 ? '+' : ''}${magneticDeclination}°`;
+    let rounded = Math.round(decl * 10) / 10;
+    if (Object.is(rounded, -0) || Math.abs(rounded) === 0) rounded = 0;
+    magneticDeclination = rounded;
+    gpsDeclination.textContent = `${magneticDeclination > 0 ? '+' : ''}${magneticDeclination.toFixed(1)}°`;
     if (isTrueNorth) {
       updateHeading(rawMagneticHeading);
     }
@@ -556,6 +571,8 @@
       targetDeviationBar.classList.remove('hidden');
       btnBearingLock.style.borderColor = 'var(--accent-target)';
       btnBearingLock.style.color = 'var(--accent-target)';
+      btnBearingLock.setAttribute('aria-pressed', 'true');
+      btnBearingLock.setAttribute('aria-label', `Unlock Target Bearing (Currently locked to ${targetHeading}°)`);
       showToast(`Bearing Locked: ${targetHeading}°`);
     } else {
       clearTarget();
@@ -569,6 +586,8 @@
     targetDeviationBar.classList.add('hidden');
     btnBearingLock.style.borderColor = '';
     btnBearingLock.style.color = '';
+    btnBearingLock.setAttribute('aria-pressed', 'false');
+    btnBearingLock.setAttribute('aria-label', 'Lock Bearing');
   }
 
   btnClearTarget.addEventListener('click', clearTarget);
@@ -580,22 +599,39 @@
       northPill.textContent = 'TRUE';
       northModeLabel.textContent = 'TRUE NORTH';
       btnToggleNorth.style.borderColor = 'var(--accent-cyan)';
+      btnToggleNorth.setAttribute('aria-label', 'Current: True North. Tap to switch to Magnetic North');
       showToast('Switched to True North');
     } else {
       northPill.textContent = 'MAG';
       northModeLabel.textContent = 'MAGNETIC NORTH';
       btnToggleNorth.style.borderColor = '';
+      btnToggleNorth.setAttribute('aria-label', 'Current: Magnetic North. Tap to switch to True North');
       showToast('Switched to Magnetic North');
     }
     updateHeading(rawMagneticHeading);
   });
 
   // --- Theme Switcher (Defaults to Marine Brass) ---
+  const THEME_COLORS = {
+    'theme-marine': '#08111e',
+    'theme-tactical': '#07090e',
+    'theme-minimal': '#09090b',
+    'theme-night': '#050000'
+  };
+
+  function applyThemeMetaColor(themeName) {
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme && THEME_COLORS[themeName]) {
+      metaTheme.setAttribute('content', THEME_COLORS[themeName]);
+    }
+  }
+
   btnTheme.addEventListener('click', () => {
     document.body.classList.remove(THEMES[currentThemeIndex]);
     currentThemeIndex = (currentThemeIndex + 1) % THEMES.length;
     const newTheme = THEMES[currentThemeIndex];
     document.body.classList.add(newTheme);
+    applyThemeMetaColor(newTheme);
     try {
       localStorage.setItem('kuberan-theme-v3', newTheme);
     } catch(e) {}
@@ -619,9 +655,11 @@
   if (savedTheme && THEMES.includes(savedTheme)) {
     document.body.classList.add(savedTheme);
     currentThemeIndex = THEMES.indexOf(savedTheme);
+    applyThemeMetaColor(savedTheme);
   } else {
     document.body.classList.add('theme-marine');
     currentThemeIndex = 0;
+    applyThemeMetaColor('theme-marine');
   }
 
 
@@ -693,7 +731,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.6.0')
+      navigator.serviceWorker.register('sw.js?v=3.7.0')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update
@@ -703,8 +741,10 @@
     });
 
     let refreshing = false;
+    const hadController = Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!refreshing) {
+      // Only reload if the client was already controlled by an older worker (prevent first-install reload)
+      if (!refreshing && hadController) {
         refreshing = true;
         window.location.reload();
       }
@@ -717,7 +757,14 @@
     const qrcodeBox = document.getElementById('qrcodeBox');
     if (!qrcodeBox) return;
 
-    const url = window.location.href;
+    // Use live GitHub Pages URL if running locally so phone scans open the live app
+    let url = 'https://jee1vk.github.io/compass-app/';
+    if (window.location.protocol.startsWith('http') && 
+        !window.location.hostname.includes('localhost') && 
+        !window.location.hostname.includes('127.0.0.1')) {
+      url = window.location.origin + window.location.pathname;
+    }
+
     qrcodeBox.innerHTML = '';
     
     if (typeof QRCode !== 'undefined') {
