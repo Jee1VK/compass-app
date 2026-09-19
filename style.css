@@ -172,11 +172,34 @@ body {
   gap: 10px;
 }
 
-.brand-icon {
-  color: var(--accent-cyan);
-  display: flex;
+.kuberan-logo-link {
+  display: inline-flex;
   align-items: center;
-  filter: drop-shadow(0 0 8px var(--accent-glow));
+  justify-content: center;
+  text-decoration: none;
+  border-radius: 9px;
+  transition: transform 0.15s ease;
+}
+
+.kuberan-logo-link:active {
+  transform: scale(0.92);
+}
+
+.kuberan-header-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px;
+  border: 1px solid rgba(212, 163, 89, 0.35);
+  box-shadow: 0 0 10px rgba(212, 163, 89, 0.25);
+  transition: all 0.2s ease;
+}
+
+.kuberan-logo-link:hover .kuberan-header-logo {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 14px var(--accent-glow);
 }
 
 .brand-text {
@@ -833,15 +856,29 @@ body {
   font-weight: 800;
 }
 
-.btn-modal-close {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: var(--text-main);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font-size: 1rem;
-  cursor: pointer;
+.modal-brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kuberan-modal-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px;
+  border: 1.5px solid rgba(212, 163, 89, 0.4);
+  box-shadow: 0 2px 12px rgba(212, 163, 89, 0.3);
+}
+
+.modal-brand-sub {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-cyan);
+  display: block;
 }
 
 .qr-container {
