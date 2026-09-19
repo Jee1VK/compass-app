@@ -1,6 +1,6 @@
 {
-  "name": "Kuberan Compass App",
-  "short_name": "Kuberan Compass",
+  "name": "KUBERAN Compass App",
+  "short_name": "KUBERAN Compass",
   "description": "High-precision mobile compass, dual-axis inclinometer bubble level, and GPS telemetry for iOS & Android.",
   "start_url": "./index.html",
   "scope": "./",

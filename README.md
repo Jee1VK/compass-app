@@ -1,4 +1,4 @@
-# 🧭 Kuberan Compass App - High-Precision Mobile Compass & Inclinometer
+# 🧭 KUBERAN Compass App - High-Precision Mobile Compass & Inclinometer
 
 A sleek, downloadable **Compass & Inclinometer Progressive Web App (PWA)** built for iOS (Safari) and Android (Chrome / Samsung Internet), with 100% offline support and zero ads or bloat.
 
