@@ -8,6 +8,7 @@
 
   // --- State Variables ---
   let currentHeading = 0;
+  let rawMagneticHeading = 0;
   let targetHeading = null;
   let isTrueNorth = false;
   let magneticDeclination = 0;
@@ -17,6 +18,7 @@
   let hapticsEnabled = true;
   let deferredPrompt = null;
   let lastVibrateTime = 0;
+  let lastVibratedCardinal = -1;
 
   // Themes list (Marine Brass is default)
   const THEMES = ['theme-marine', 'theme-tactical', 'theme-minimal', 'theme-night'];
@@ -67,7 +69,6 @@
   const hapticLabel = document.getElementById('hapticLabel');
   const btnInstallApp = document.getElementById('btnInstallApp');
   const toast = document.getElementById('toast');
-  const qrCanvas = document.getElementById('qrCanvas');
   const githubRepoLink = document.getElementById('githubRepoLink');
 
   // --- Initialize Vector Compass Dial SVG ---
@@ -208,10 +209,14 @@
   }
 
   // --- Update Compass Orientation ---
-  function updateHeading(heading) {
-    let trueHeading = heading;
+  function updateHeading(rawHeading) {
+    if (typeof rawHeading === 'number' && !isNaN(rawHeading)) {
+      rawMagneticHeading = ((rawHeading % 360) + 360) % 360;
+    }
+
+    let trueHeading = rawMagneticHeading;
     if (isTrueNorth) {
-      trueHeading = (heading + magneticDeclination + 360) % 360;
+      trueHeading = ((rawMagneticHeading + magneticDeclination) % 360 + 360) % 360;
     }
 
     currentHeading = trueHeading;
@@ -250,13 +255,16 @@
       }
     }
 
-    // Haptic feedback on cardinal points (0°, 90°, 180°, 270°)
+    // Haptic feedback on cardinal points (0°, 90°, 180°, 270°) - single pulse upon crossing
     if (hapticsEnabled && 'vibrate' in navigator) {
-      const isCardinal = (rounded % 90 === 0 || rounded === 360);
+      const cardinalIndex = [0, 90, 180, 270].findIndex(c => Math.abs(rounded - c) <= 1 || (c === 0 && rounded === 360));
       const now = Date.now();
-      if (isCardinal && (now - lastVibrateTime > 600)) {
-        navigator.vibrate(rounded === 0 || rounded === 360 ? [30, 40, 30] : 15);
+      if (cardinalIndex !== -1 && cardinalIndex !== lastVibratedCardinal && (now - lastVibrateTime > 400)) {
+        navigator.vibrate(cardinalIndex === 0 ? [30, 40, 30] : 18);
         lastVibrateTime = now;
+        lastVibratedCardinal = cardinalIndex;
+      } else if (cardinalIndex === -1) {
+        lastVibratedCardinal = -1;
       }
     }
   }
@@ -357,9 +365,9 @@
     // iOS provides direct calibrated magnetic heading
     if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
       heading = event.webkitCompassHeading;
-    } else if (event.alpha !== null) {
+    } else if (event.alpha !== null && event.alpha !== undefined) {
       // Android: alpha goes 0-360 counter-clockwise
-      heading = 360 - event.alpha;
+      heading = ((360 - event.alpha) % 360 + 360) % 360;
       if (event.absolute === false) {
         sensorStatus.textContent = 'Relative gyro';
       }
@@ -371,15 +379,17 @@
     let p = event.beta || 0;  // Front-to-back tilt in [-180, 180]
     let r = event.gamma || 0; // Left-to-right tilt in [-90, 90]
 
-    // Handle landscape orientation adjustments
-    if (window.orientation) {
-      if (window.orientation === 90) {
-        const temp = p; p = -r; r = temp;
-      } else if (window.orientation === -90) {
-        const temp = p; p = r; r = -temp;
-      } else if (window.orientation === 180) {
-        p = -p; r = -r;
-      }
+    // Handle landscape/portrait orientation adjustments (modern standard + legacy fallback)
+    const orientationAngle = (screen.orientation && typeof screen.orientation.angle === 'number')
+      ? screen.orientation.angle
+      : (typeof window.orientation === 'number' ? window.orientation : 0);
+
+    if (orientationAngle === 90) {
+      const temp = p; p = -r; r = temp;
+    } else if (orientationAngle === -90 || orientationAngle === 270) {
+      const temp = p; p = r; r = -temp;
+    } else if (orientationAngle === 180) {
+      p = -p; r = -r;
     }
 
     updateOrientation(p, r);
@@ -395,27 +405,37 @@
       const rect = compassCard.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const clientX = e.touches && e.touches.length ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches && e.touches.length ? e.touches[0].clientY : e.clientY;
       return Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI);
     }
 
-    compassCard.addEventListener('mousedown', (e) => {
+    function onStart(e) {
       if (hasSensorData) return;
       isDragging = true;
       startAngle = getAngle(e);
-      startHeading = currentHeading;
-    });
+      startHeading = rawMagneticHeading;
+    }
 
-    window.addEventListener('mousemove', (e) => {
+    function onMove(e) {
       if (!isDragging) return;
       const currentAngle = getAngle(e);
       const diff = currentAngle - startAngle;
       const newHeading = (startHeading - diff + 360) % 360;
       updateHeading(newHeading);
-    });
+    }
 
-    window.addEventListener('mouseup', () => { isDragging = false; });
+    function onEnd() {
+      isDragging = false;
+    }
+
+    compassCard.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+
+    compassCard.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onEnd, { passive: true });
   }
 
   // --- GPS Geolocation Engine ---
@@ -449,7 +469,7 @@
         gpsLngDec.textContent = `${lng.toFixed(5)}°`;
 
         // Altitude
-        gpsAlt.textContent = alt !== null ? `${Math.round(alt)} m` : 'Sea Level';
+        gpsAlt.textContent = (alt !== null && alt !== undefined && !isNaN(alt)) ? `${Math.round(alt)} m` : '-- m';
         gpsAccuracy.textContent = `Accuracy: ±${Math.round(acc)} m`;
 
         // Approximate Magnetic Declination (Simple model)
@@ -465,6 +485,7 @@
   }
 
   function toDMS(deg, type) {
+    if (typeof deg !== 'number' || isNaN(deg)) return '--° --\' --"';
     const absolute = Math.abs(deg);
     const degrees = Math.floor(absolute);
     const minutesNotTruncated = (absolute - degrees) * 60;
@@ -484,6 +505,9 @@
     const decl = (lng - 80) * Math.sin(lat * Math.PI / 180) * 0.15;
     magneticDeclination = Math.round(decl * 10) / 10;
     gpsDeclination.textContent = `${magneticDeclination >= 0 ? '+' : ''}${magneticDeclination}°`;
+    if (isTrueNorth) {
+      updateHeading(rawMagneticHeading);
+    }
   }
 
   // --- Target Bearing Lock ---
@@ -526,7 +550,7 @@
       btnToggleNorth.style.borderColor = '';
       showToast('Switched to Magnetic North');
     }
-    updateHeading(currentHeading);
+    updateHeading(rawMagneticHeading);
   });
 
   // --- Theme Switcher (Defaults to Marine Brass) ---
@@ -634,7 +658,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.0.0')
+      navigator.serviceWorker.register('sw.js?v=3.3.0')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update
@@ -662,14 +686,21 @@
     qrcodeBox.innerHTML = '';
     
     if (typeof QRCode !== 'undefined') {
-      qrcodeInstance = new QRCode(qrcodeBox, {
-        text: url,
-        width: 170,
-        height: 170,
-        colorDark: '#07090e',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-      });
+      try {
+        qrcodeInstance = new QRCode(qrcodeBox, {
+          text: url,
+          width: 170,
+          height: 170,
+          colorDark: '#07090e',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch (err) {
+        console.warn('QR Code rendering fallback:', err);
+        qrcodeBox.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#07090e;font-size:12px;font-weight:600;word-break:break-all;text-align:center;">${url}</a>`;
+      }
+    } else {
+      qrcodeBox.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#07090e;font-size:12px;font-weight:600;word-break:break-all;text-align:center;">${url}</a>`;
     }
   }
 

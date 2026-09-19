@@ -1,17 +1,25 @@
-const CACHE_NAME = 'kuberan-compass-v3.2.0';
+const CACHE_NAME = 'kuberan-compass-v3.3.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=3.0.0',
-  './qrcode.min.js?v=3.0.0',
-  './app.js?v=3.0.0',
-  './manifest.webmanifest?v=3.0.0',
+  './style.css?v=3.3.0',
+  './style.css',
+  './qrcode.min.js?v=3.3.0',
+  './qrcode.min.js',
+  './app.js?v=3.3.0',
+  './app.js',
+  './manifest.webmanifest?v=3.3.0',
+  './manifest.webmanifest',
   './assets/images/kuberan_logo_white_bg.png',
   './assets/images/kuberan_logo_transparent.png',
-  './icon.svg?v=3.0.0',
-  './icon-192.png?v=3.0.0',
-  './icon-512.png?v=3.0.0',
-  './apple-touch-icon.png?v=3.0.0'
+  './icon.svg?v=3.3.0',
+  './icon.svg',
+  './icon-192.png?v=3.3.0',
+  './icon-192.png',
+  './icon-512.png?v=3.3.0',
+  './icon-512.png',
+  './apple-touch-icon.png?v=3.3.0',
+  './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -55,19 +63,29 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => caches.match('./index.html') || caches.match('./'))
+        .catch(async () => {
+          const cached = await caches.match(event.request, { ignoreSearch: true });
+          if (cached) return cached;
+          const indexMatch = await caches.match('./index.html');
+          if (indexMatch) return indexMatch;
+          const rootMatch = await caches.match('./');
+          if (rootMatch) return rootMatch;
+          return new Response('<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>KUBERAN Compass App is Offline</h1></body></html>', {
+            headers: { 'Content-Type': 'text/html' }
+          });
+        })
     );
   } else {
     // Cache-First with Network Revalidation for assets
     event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
+      caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const copy = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           }
           return networkResponse;
-        }).catch(() => {/* offline */});
+        }).catch(() => {/* offline fallback */});
 
         return cachedResponse || fetchPromise;
       })

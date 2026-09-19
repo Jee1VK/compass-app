@@ -1,28 +1,29 @@
 # 🧭 KUBERAN Compass App - High-Precision Mobile Compass & Inclinometer
 
-A sleek, downloadable **Compass & Inclinometer Progressive Web App (PWA)** built for iOS (Safari) and Android (Chrome / Samsung Internet), with 100% offline support and zero ads or bloat.
+A sleek, downloadable **Compass & Inclinometer Progressive Web App (PWA)** built for iOS (Safari) and Android (Chrome / Samsung Internet), with 100% offline support, zero ads, and no telemetry bloat. Official edition presented by [Kuberan Silks](https://kuberansilks.com/).
 
-📱 **Live Web App & Mobile Install:** [https://jee1vk.github.io/compass-app/](https://jee1vk.github.io/compass-app/)
+📱 **Live Web App & Mobile Install:** [https://jee1vk.github.io/compass-app/](https://jee1vk.github.io/compass-app/)  
+🏪 **Official Store:** [https://kuberansilks.com/](https://kuberansilks.com/)
 
 ---
 
 ## 📲 How to Download & Install on Your Phone
 
-You can download and install this directly to your phone's home screen as a standalone full-screen native-like app:
+You can install this directly to your phone's home screen as a standalone full-screen native-like app:
 
 ### 🍏 iPhone / iPad (iOS Safari)
 1. Open [https://jee1vk.github.io/compass-app/](https://jee1vk.github.io/compass-app/) in **Safari**.
 2. Tap the **Share** button (the square icon with an arrow pointing up).
 3. Scroll down and tap **"Add to Home Screen"**.
 4. Tap **"Add"** in the top-right corner.
-5. The **Compass** app icon will now appear on your home screen! Tap it to launch full-screen.
-6. *Note*: On first open, tap **"Enable"** on the banner to activate your device's motion sensors.
+5. The **KUBERAN Compass App** icon will now appear on your home screen! Tap it to launch full-screen.
+6. *Note*: On first launch, tap **"Enable"** on the banner to activate your device's motion sensors.
 
 ### 🤖 Android (Chrome / Edge / Samsung Internet)
 1. Open [https://jee1vk.github.io/compass-app/](https://jee1vk.github.io/compass-app/) in **Chrome**.
 2. Tap the **"Install App"** button on screen, OR tap the **three dots menu (⋮)** in the top right.
 3. Tap **"Install app"** (or **"Add to Home screen"**).
-4. Launch **Compass** directly from your app drawer or home screen!
+4. Launch **KUBERAN Compass App** directly from your app drawer or home screen!
 
 ---
 
@@ -32,7 +33,7 @@ You can download and install this directly to your phone's home screen as a stan
   - Real-time magnetic heading and true north heading.
   - Cardinal & Intercardinal readouts (`N`, `NNW`, `NE`, `E`, etc.).
   - Military NATO Mils scale (0–6400 mils) and back-azimuth calculation.
-  - Angular smoothing algorithm for jitter-free 60fps rotation.
+  - Authentic 8-point vintage nautical compass rose vector dial.
 - ⚖️ **Dual-Axis Bubble Level & Inclinometer**:
   - Center crosshairs bubble level for leveling tables, RVs, tripods, and surfaces.
   - Real-time **Pitch** (front-to-back tilt) and **Roll** (left-to-right tilt) digital readouts.
@@ -46,14 +47,14 @@ You can download and install this directly to your phone's home screen as a stan
   - Calculated magnetic declination offset.
   - One-tap **"Copy Coords"** button.
 - 🎨 **4 Visual Themes**:
-  1. **Tactical OLED**: Stealth high-contrast neon cyan & military amber on pitch black.
-  2. **Minimalist Glass**: Crisp Apple-style monochrome typography and dark frosted glass.
-  3. **Marine Brass**: Vintage nautical brass dial and deep ocean navy styling.
+  1. **Marine Brass (Default)**: Vintage nautical brass dial and deep ocean navy styling with authentic 8-point compass rose.
+  2. **Tactical OLED**: Stealth high-contrast neon cyan & military amber on pitch black.
+  3. **Minimalist Glass**: Crisp monochrome typography and dark frosted glass.
   4. **Night Vision Red**: Red monochrome theme preserving night-adapted vision for astronomy and tactical field use.
 - 📳 **Haptic Feedback**:
   - Gentle haptic pulses when crossing 0°/North, cardinal axes, or when surface is level.
 - ⚡ **100% Offline Capability**:
-  - Built with a Service Worker caching all assets. Works in the wilderness with no cellular reception or internet.
+  - Built with a Service Worker caching all static assets. Operates seamlessly in the wilderness with no cellular reception or internet.
 
 ---
 
@@ -71,4 +72,4 @@ Then visit `http://localhost:8080` in your browser.
 ---
 
 ## 📄 License
-MIT License. Created by [Jee1VK](https://github.com/Jee1VK).
+MIT License. Created for Kuberan Silks by [Jee1VK](https://github.com/Jee1VK).
