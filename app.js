@@ -64,9 +64,6 @@
   const gpsDeclination = document.getElementById('gpsDeclination');
   const sensorStatus = document.getElementById('sensorStatus');
   const btnCopyCoords = document.getElementById('btnCopyCoords');
-  const btnHapticToggle = document.getElementById('btnHapticToggle');
-  const hapticIcon = document.getElementById('hapticIcon');
-  const hapticLabel = document.getElementById('hapticLabel');
   const btnInstallApp = document.getElementById('btnInstallApp');
   const toast = document.getElementById('toast');
   const githubRepoLink = document.getElementById('githubRepoLink');
@@ -320,14 +317,27 @@
 
   // --- Device Motion & Orientation Listeners ---
   function initSensors() {
+    let previouslyGranted = false;
+    try {
+      previouslyGranted = localStorage.getItem('kuberan-sensors-enabled') === 'true';
+    } catch(e) {}
+
+    // Always attach sensor listeners right away
+    attachSensorListeners();
+
     // 1. Check for iOS 13+ permission requirement
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      iosPermissionBanner.classList.remove('hidden');
+      // If not previously granted, display the floating hover banner
+      if (!previouslyGranted) {
+        iosPermissionBanner.classList.remove('hidden');
+      }
+
       btnGrantSensor.addEventListener('click', async () => {
         try {
           const response = await DeviceOrientationEvent.requestPermission();
           if (response === 'granted') {
             iosPermissionBanner.classList.add('hidden');
+            try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
             attachSensorListeners();
             showToast('Compass Sensors Activated');
           } else {
@@ -335,12 +345,12 @@
           }
         } catch (err) {
           console.error(err);
-          showToast('Could not access motion sensor');
+          // If already granted in a previous prompt or gesture error, attach listeners and hide
+          attachSensorListeners();
+          iosPermissionBanner.classList.add('hidden');
+          try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
         }
       });
-    } else {
-      // Android / Desktop / standard WebKit
-      attachSensorListeners();
     }
   }
 
@@ -359,6 +369,11 @@
   function handleDeviceOrientation(event) {
     hasSensorData = true;
     sensorStatus.textContent = 'Hardware active';
+    // Ensure permission banner is dismissed and saved as enabled once data arrives
+    if (iosPermissionBanner && !iosPermissionBanner.classList.contains('hidden')) {
+      iosPermissionBanner.classList.add('hidden');
+    }
+    try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
 
     let heading = 0;
 
@@ -587,20 +602,6 @@
     currentThemeIndex = 0;
   }
 
-  // --- Haptics Toggle ---
-  btnHapticToggle.addEventListener('click', () => {
-    hapticsEnabled = !hapticsEnabled;
-    if (hapticsEnabled) {
-      hapticIcon.textContent = '📳';
-      hapticLabel.textContent = 'Haptics ON';
-      showToast('Haptic Vibration Enabled');
-      if ('vibrate' in navigator) navigator.vibrate(30);
-    } else {
-      hapticIcon.textContent = '🔕';
-      hapticLabel.textContent = 'Haptics OFF';
-      showToast('Haptic Vibration Disabled');
-    }
-  });
 
   // --- Copy Coordinates ---
   btnCopyCoords.addEventListener('click', async () => {
@@ -658,7 +659,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.3.0')
+      navigator.serviceWorker.register('sw.js?v=3.4.0')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update
