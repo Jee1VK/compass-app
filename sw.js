@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kuberan-compass-v3.1.0';
+const CACHE_NAME = 'kuberan-compass-v3.2.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS_TO_CACHE = [
   './qrcode.min.js?v=3.0.0',
   './app.js?v=3.0.0',
   './manifest.webmanifest?v=3.0.0',
+  './assets/images/kuberan_logo_white_bg.png',
   './assets/images/kuberan_logo_transparent.png',
   './icon.svg?v=3.0.0',
   './icon-192.png?v=3.0.0',
