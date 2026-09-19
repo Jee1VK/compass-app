@@ -110,7 +110,8 @@
 
       // Numbers for 30° increments
       if (is30 && deg !== 0) {
-        const textR = rOuter - 30;
+        const isCardinalAngle = (deg === 90 || deg === 180 || deg === 270);
+        const textR = isCardinalAngle ? (rOuter - 46) : (rOuter - 30);
         const tx = cx + textR * Math.cos(rad);
         const ty = cy + textR * Math.sin(rad);
         svgContent += `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="var(--dial-text)" font-size="13" font-weight="700" font-family="var(--font-mono)" text-anchor="middle" dominant-baseline="central" transform="rotate(${deg}, ${tx.toFixed(1)}, ${ty.toFixed(1)})">${deg}</text>`;
@@ -121,11 +122,11 @@
     const cardinals = [
       { label: 'N', deg: 0, r: rOuter - 30, size: 26, weight: 900, color: 'var(--accent-north)' },
       { label: 'NE', deg: 45, r: rOuter - 26, size: 12, weight: 800, color: 'var(--dial-ticks-major)' },
-      { label: 'E', deg: 90, r: rOuter - 28, size: 22, weight: 800, color: 'var(--dial-ticks-major)' },
+      { label: 'E', deg: 90, r: rOuter - 25, size: 22, weight: 800, color: 'var(--dial-ticks-major)' },
       { label: 'SE', deg: 135, r: rOuter - 26, size: 12, weight: 800, color: 'var(--dial-ticks-major)' },
-      { label: 'S', deg: 180, r: rOuter - 28, size: 22, weight: 800, color: 'var(--dial-ticks-major)' },
+      { label: 'S', deg: 180, r: rOuter - 25, size: 22, weight: 800, color: 'var(--dial-ticks-major)' },
       { label: 'SW', deg: 225, r: rOuter - 26, size: 12, weight: 800, color: 'var(--dial-ticks-major)' },
-      { label: 'W', deg: 270, r: rOuter - 28, size: 22, weight: 800, color: 'var(--dial-ticks-major)' },
+      { label: 'W', deg: 270, r: rOuter - 25, size: 22, weight: 800, color: 'var(--dial-ticks-major)' },
       { label: 'NW', deg: 315, r: rOuter - 26, size: 12, weight: 800, color: 'var(--dial-ticks-major)' }
     ];
 
@@ -659,7 +660,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.4.0')
+      navigator.serviceWorker.register('sw.js?v=3.5.0')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update
