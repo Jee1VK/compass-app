@@ -18,8 +18,8 @@
   let deferredPrompt = null;
   let lastVibrateTime = 0;
 
-  // Themes list
-  const THEMES = ['theme-tactical', 'theme-minimal', 'theme-marine', 'theme-night'];
+  // Themes list (Marine Brass is default)
+  const THEMES = ['theme-marine', 'theme-tactical', 'theme-minimal', 'theme-night'];
   let currentThemeIndex = 0;
 
   // DOM Elements
@@ -147,6 +147,49 @@
       const my = cy + mr * Math.sin(rad);
       svgContent += `<text x="${mx.toFixed(1)}" y="${my.toFixed(1)}" fill="var(--text-dim)" font-size="9" font-weight="700" font-family="var(--font-mono)" text-anchor="middle" dominant-baseline="central" transform="rotate(${deg}, ${mx.toFixed(1)}, ${my.toFixed(1)})">${mil}</text>`;
     }
+
+    // --- 8-Point Vintage Nautical Compass Rose ---
+    const primaryPoints = [0, 90, 180, 270];
+    primaryPoints.forEach(deg => {
+      const tipRad = (deg - 90) * (Math.PI / 180);
+      const leftRad = (deg - 90 - 14) * (Math.PI / 180);
+      const rightRad = (deg - 90 + 14) * (Math.PI / 180);
+      const rTip = 125;
+      const rBase = 58;
+
+      const tipX = cx + rTip * Math.cos(tipRad);
+      const tipY = cy + rTip * Math.sin(tipRad);
+      const leftX = cx + rBase * Math.cos(leftRad);
+      const leftY = cy + rBase * Math.sin(leftRad);
+      const rightX = cx + rBase * Math.cos(rightRad);
+      const rightY = cy + rBase * Math.sin(rightRad);
+
+      const isNorth = (deg === 0);
+      const colA = isNorth ? 'var(--accent-north)' : 'var(--accent-cyan)';
+      const colB = isNorth ? '#991b1b' : 'rgba(180, 130, 60, 0.45)';
+
+      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${rightX.toFixed(1)},${rightY.toFixed(1)}" fill="${colA}" fill-opacity="0.85"/>`;
+      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${leftX.toFixed(1)},${leftY.toFixed(1)}" fill="${colB}" fill-opacity="0.75"/>`;
+    });
+
+    const secondaryPoints = [45, 135, 225, 315];
+    secondaryPoints.forEach(deg => {
+      const tipRad = (deg - 90) * (Math.PI / 180);
+      const leftRad = (deg - 90 - 11) * (Math.PI / 180);
+      const rightRad = (deg - 90 + 11) * (Math.PI / 180);
+      const rTip = 100;
+      const rBase = 58;
+
+      const tipX = cx + rTip * Math.cos(tipRad);
+      const tipY = cy + rTip * Math.sin(tipRad);
+      const leftX = cx + rBase * Math.cos(leftRad);
+      const leftY = cy + rBase * Math.sin(leftRad);
+      const rightX = cx + rBase * Math.cos(rightRad);
+      const rightY = cy + rBase * Math.sin(rightRad);
+
+      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${rightX.toFixed(1)},${rightY.toFixed(1)}" fill="var(--accent-cyan)" fill-opacity="0.6"/>`;
+      svgContent += `<polygon points="${cx},${cy} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${leftX.toFixed(1)},${leftY.toFixed(1)}" fill="rgba(140, 95, 40, 0.35)" fill-opacity="0.6"/>`;
+    });
 
     // Center Crosshairs Accent
     svgContent += `<line x1="${cx}" y1="${cy - 70}" x2="${cx}" y2="${cy - 120}" stroke="currentColor" stroke-opacity="0.2" stroke-width="1.5"/>`;
@@ -486,23 +529,38 @@
     updateHeading(currentHeading);
   });
 
-  // --- Theme Switcher ---
+  // --- Theme Switcher (Defaults to Marine Brass) ---
   btnTheme.addEventListener('click', () => {
     document.body.classList.remove(THEMES[currentThemeIndex]);
     currentThemeIndex = (currentThemeIndex + 1) % THEMES.length;
     const newTheme = THEMES[currentThemeIndex];
     document.body.classList.add(newTheme);
-    localStorage.setItem('aerocompass-theme', newTheme);
+    try {
+      localStorage.setItem('kuberan-theme-v3', newTheme);
+    } catch(e) {}
     buildDialSvg(); // Re-render dial to match theme accent
     showToast(`Theme: ${newTheme.replace('theme-', '').toUpperCase()}`);
   });
 
-  // Restore Theme
-  const savedTheme = localStorage.getItem('aerocompass-theme');
+  // Clear older stored theme to ensure Marine Brass is active by default for everyone
+  try {
+    localStorage.removeItem('aerocompass-theme');
+    localStorage.removeItem('compass-theme');
+  } catch(e) {}
+
+  // Restore Theme: defaults to Marine Brass (theme-marine)
+  let savedTheme = null;
+  try {
+    savedTheme = localStorage.getItem('kuberan-theme-v3');
+  } catch(e) {}
+
+  THEMES.forEach(t => document.body.classList.remove(t));
   if (savedTheme && THEMES.includes(savedTheme)) {
-    document.body.classList.remove('theme-tactical');
     document.body.classList.add(savedTheme);
     currentThemeIndex = THEMES.indexOf(savedTheme);
+  } else {
+    document.body.classList.add('theme-marine');
+    currentThemeIndex = 0;
   }
 
   // --- Haptics Toggle ---
@@ -576,9 +634,21 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then((reg) => console.log('KUBERAN Compass ServiceWorker registered:', reg.scope))
+      navigator.serviceWorker.register('sw.js?v=3.0.0')
+        .then((reg) => {
+          console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
+          // Check for immediate update
+          reg.update();
+        })
         .catch((err) => console.log('ServiceWorker registration error:', err));
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   }
 
