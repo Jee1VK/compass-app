@@ -944,7 +944,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.9.2')
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update
