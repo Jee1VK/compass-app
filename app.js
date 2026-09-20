@@ -82,7 +82,6 @@
   const gpsAlt = document.getElementById('gpsAlt');
   const gpsAccuracy = document.getElementById('gpsAccuracy');
   const gpsDeclination = document.getElementById('gpsDeclination');
-  const sensorStatus = document.getElementById('sensorStatus');
   const btnCopyCoords = document.getElementById('btnCopyCoords');
   const btnInstallApp = document.getElementById('btnInstallApp');
   const toast = document.getElementById('toast');
@@ -233,9 +232,9 @@
   // plane to extract a true compass heading regardless of pitch/roll.
   function tiltCompensatedHeading(alpha, beta, gamma) {
     const degToRad = Math.PI / 180;
-    const a = alpha * degToRad;
-    const b = beta  * degToRad;
-    const g = gamma * degToRad;
+    const a = (alpha || 0) * degToRad;
+    const b = (beta || 0)  * degToRad;
+    const g = (gamma || 0) * degToRad;
 
     // Rotation matrix components (ZXY intrinsic Tait-Bryan angles)
     const cA = Math.cos(a), sA = Math.sin(a);
@@ -243,8 +242,6 @@
     const cG = Math.cos(g), sG = Math.sin(g);
 
     // Elements of the rotation matrix that map device Y-axis to Earth frame
-    // rA = -cos(alpha)*sin(gamma) - sin(alpha)*sin(beta)*cos(gamma)
-    // rB = -sin(alpha)*sin(gamma) + cos(alpha)*sin(beta)*cos(gamma)
     const rA = -cA * sG - sA * sB * cG;
     const rB = -sA * sG + cA * sB * cG;
 
@@ -253,6 +250,25 @@
     if (heading < 0) heading += 360;
 
     return heading;
+  }
+
+  function calculateAndroidHeading(alpha, beta, gamma) {
+    const flatHeading = ((360 - (alpha || 0)) % 360 + 360) % 360;
+    const tiltMag = Math.sqrt((beta || 0) * (beta || 0) + (gamma || 0) * (gamma || 0));
+
+    if (tiltMag < 6) {
+      return flatHeading;
+    }
+
+    const compHeading = tiltCompensatedHeading(alpha, beta, gamma);
+
+    if (tiltMag >= 14) {
+      return compHeading;
+    }
+
+    // Smooth continuous blend between 6° and 14° tilt to prevent jump at small tilt angles
+    const factor = (tiltMag - 6) / 8;
+    return smoothAngle(flatHeading, compHeading, factor);
   }
 
   // --- Angle Smoothing Helper (handles 0°/360° wrap-around) ---
@@ -470,20 +486,10 @@
         sensorAccuracy = event.webkitCompassAccuracy;
       }
     } else if (event.alpha !== null && event.alpha !== undefined) {
-      // Android / W3C: Use tilt-compensated heading formula
+      // Android / W3C: Use tilt-compensated heading with smooth transition
       // Raw alpha alone is inaccurate when the phone is tilted (natural viewing angle).
-      // The rotation-matrix projection accounts for beta (pitch) and gamma (roll)
-      // to produce a stable heading regardless of device tilt.
-      const beta  = (event.beta  !== null && event.beta  !== undefined) ? event.beta  : 0;
-      const gamma = (event.gamma !== null && event.gamma !== undefined) ? event.gamma : 0;
-
-      // Only use tilt compensation when we have meaningful tilt data
-      if (Math.abs(beta) > 0.5 || Math.abs(gamma) > 0.5) {
-        heading = tiltCompensatedHeading(event.alpha, beta, gamma);
-      } else {
-        // Phone is flat on a table — raw alpha inversion is fine
-        heading = ((360 - event.alpha) % 360 + 360) % 360;
-      }
+      // calculateAndroidHeading smoothly interpolates between flat and tilted angles.
+      heading = calculateAndroidHeading(event.alpha, event.beta, event.gamma);
 
       if (event.absolute === true || isAbsolute) {
         isAbsoluteOrientation = true;
@@ -579,7 +585,7 @@
 
     // Altitude
     gpsAlt.textContent = (alt !== null && alt !== undefined && !isNaN(alt)) ? `${Math.round(alt)} m` : '-- m';
-    gpsAccuracy.textContent = `Accuracy: ±${Math.round(acc)} m`;
+    gpsAccuracy.textContent = (acc !== null && acc !== undefined && !isNaN(acc)) ? `Accuracy: ±${Math.round(acc)} m` : 'Accuracy: ±-- m';
 
     // Approximate Magnetic Declination (Simple model)
     calculateDeclination(lat, lng);
@@ -938,7 +944,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.9.1')
+      navigator.serviceWorker.register('sw.js?v=3.9.2')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update

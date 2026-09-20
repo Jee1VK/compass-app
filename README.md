@@ -27,10 +27,11 @@ You can install this directly to your phone's home screen as a standalone full-s
 
 ---
 
-## ✨ Features (v3.8.0)
+## ✨ Features (v3.9.2)
 
 - 🧭 **High-Precision Compass**:
   - Real-time magnetic heading and true north heading with automatic declination calculation.
+  - **W3C Rotation-Matrix 3D Tilt Compensation**: Projects device orientation onto the horizontal plane using Euler angles ($\alpha, \beta, \gamma$), ensuring rock-solid heading accuracy even when held at natural viewing angles ($30^\circ-60^\circ$).
   - Automatic landscape & portrait screen orientation compensation.
   - Cardinal & Intercardinal typography (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`).
   - Degree numbers `90` below `E`, `180` below `S`, and `270` below `W` for effortless navigation.
@@ -39,7 +40,7 @@ You can install this directly to your phone's home screen as a standalone full-s
   - Low-pass angular filter eliminating magnetometer jitter.
 - 🎯 **Sensor Calibration & Alignment Studio**:
   - Dedicated **"Calibrate"** tool and live telemetry accuracy badge.
-  - Interactive **Figure-8 Gesture Guide** to reset internal magnetometer and clear magnetic interference.
+  - Symmetrical **Lemniscate Figure-8 Motion Guide** with real-time animated travelling device to reset magnetometer and eliminate hard/soft iron interference.
   - Live hardware calibration confidence metrics (`High`, `Good`, `Interference / Needs Cal`).
   - **Manual Calibration Offset**: Nudge offset (`[-5°]`, `[-1°]`, `[+1°]`, `[+5°]`) or **"Set Current Heading as True Reference"** to compensate for magnetic phone cases or external magnetic bias.
   - Persistent offset configuration saved in `localStorage`.
