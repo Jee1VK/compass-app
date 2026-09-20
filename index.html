@@ -6,17 +6,17 @@
   <title>KUBERAN Compass App - High-Precision Mobile Compass</title>
 
   <!-- PWA Settings -->
-  <link rel="manifest" href="manifest.webmanifest?v=3.9.0">
+  <link rel="manifest" href="manifest.webmanifest?v=3.9.1">
   <meta name="theme-color" content="#08111e">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="KUBERAN Compass">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3.9.0">
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=3.9.0">
-  <link rel="alternate icon" type="image/png" href="icon-192.png?v=3.9.0">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3.9.1">
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=3.9.1">
+  <link rel="alternate icon" type="image/png" href="icon-192.png?v=3.9.1">
 
-  <link rel="stylesheet" href="style.css?v=3.9.0">
+  <link rel="stylesheet" href="style.css?v=3.9.1">
 </head>
 <body class="theme-marine">
   <!-- Status / Safe Area Bar -->
@@ -272,15 +272,44 @@
         <!-- 3D Figure-8 Calibration Guide -->
         <div class="fig8-guide-card">
           <div class="fig8-canvas-wrap">
-            <svg class="fig8-svg" viewBox="0 0 160 80" width="160" height="80">
-              <path d="M 40,40 C 40,20 15,20 15,40 C 15,60 40,60 80,40 C 120,20 145,20 145,40 C 145,60 120,60 80,40 Z" fill="none" stroke="var(--border-color)" stroke-width="3" stroke-dasharray="6,4"/>
-              <path d="M 40,40 C 40,20 15,20 15,40 C 15,60 40,60 80,40 C 120,20 145,20 145,40 C 145,60 120,60 80,40 Z" fill="none" stroke="var(--accent-cyan)" stroke-width="4" stroke-linecap="round" class="fig8-path-anim"/>
-              <circle cx="80" cy="40" r="6" fill="var(--accent-north)" class="fig8-phone-dot"/>
+            <svg class="fig8-svg" viewBox="0 0 180 90" width="180" height="90">
+              <defs>
+                <linearGradient id="fig8Grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="var(--accent-north)" />
+                  <stop offset="50%" stop-color="var(--accent-cyan)" />
+                  <stop offset="100%" stop-color="var(--accent-north)" />
+                </linearGradient>
+                <filter id="fig8Glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2.5" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              <!-- Base Track Background -->
+              <path d="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-width="6" stroke-linecap="round"/>
+              
+              <!-- Dashed Motion Track -->
+              <path d="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" fill="none" stroke="var(--dial-ticks-major)" stroke-width="2" stroke-dasharray="6,6" stroke-opacity="0.5"/>
+              
+              <!-- Animated Glowing Trace -->
+              <path d="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" fill="none" stroke="url(#fig8Grad)" stroke-width="3.5" stroke-linecap="round" class="fig8-path-anim" filter="url(#fig8Glow)"/>
+
+              <!-- Center intersection indicator -->
+              <circle cx="90" cy="45" r="3.5" fill="var(--dial-ticks-major)" fill-opacity="0.5" />
+
+              <!-- Animated Phone Traveling the Figure-8 Path -->
+              <g class="fig8-travelling-phone">
+                <animateMotion dur="4s" repeatCount="indefinite" path="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" rotate="auto" />
+                <!-- Miniature Phone -->
+                <rect x="-7" y="-12" width="14" height="24" rx="3" fill="#0f172a" stroke="var(--accent-north)" stroke-width="1.8" />
+                <rect x="-4.5" y="-8" width="9" height="13" rx="1.5" fill="var(--accent-cyan)" fill-opacity="0.7" />
+                <circle cx="0" cy="7.5" r="1.2" fill="var(--accent-north)" />
+              </g>
             </svg>
           </div>
           <div class="fig8-instructions">
             <strong>Wave Phone in Figure-8 Motion</strong>
-            <span>Gently wave your phone in a figure-8 pattern in the air 3 to 4 times to reset the internal magnetometer and clear local magnetic bias.</span>
+            <span>Gently tilt and wave your device in a figure-8 / infinity motion 3 to 4 times to calibrate all 3 sensor axes.</span>
           </div>
         </div>
 
@@ -356,14 +385,14 @@
         </div>
 
         <div class="app-version">
-          <span>KUBERAN Compass App v3.9.0 • Official Edition</span>
+          <span>KUBERAN Compass App v3.9.1 • Official Edition</span>
           <a id="githubRepoLink" href="https://github.com/Jee1VK/compass-app" target="_blank" rel="noopener noreferrer">View GitHub Repo</a>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="qrcode.min.js?v=3.9.0"></script>
-  <script src="app.js?v=3.9.0"></script>
+  <script src="qrcode.min.js?v=3.9.1"></script>
+  <script src="app.js?v=3.9.1"></script>
 </body>
 </html>
