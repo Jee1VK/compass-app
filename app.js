@@ -26,7 +26,7 @@
     calibrationOffset = parseFloat(localStorage.getItem('kuberan-compass-offset')) || 0;
   } catch(e) {}
   let smoothedHeading = null;
-  const SMOOTHING_FACTOR = 0.22; // low-pass filter for rock-solid stability
+  const SMOOTHING_FACTOR = 0.25; // low-pass filter — balanced responsiveness + stability
   let sensorAccuracy = null;
   let isAbsoluteOrientation = false;
 
@@ -224,6 +224,35 @@
     const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
     const idx = Math.round(deg / 22.5) % 16;
     return directions[idx];
+  }
+
+  // --- Tilt-Compensated Compass Heading (W3C / Rotation Matrix) ---
+  // On Android, raw alpha is NOT tilt-compensated. When the phone is tilted
+  // (held at natural 30-50° viewing angle), heading from raw alpha drifts.
+  // This formula projects the device's rotation matrix onto the horizontal
+  // plane to extract a true compass heading regardless of pitch/roll.
+  function tiltCompensatedHeading(alpha, beta, gamma) {
+    const degToRad = Math.PI / 180;
+    const a = alpha * degToRad;
+    const b = beta  * degToRad;
+    const g = gamma * degToRad;
+
+    // Rotation matrix components (ZXY intrinsic Tait-Bryan angles)
+    const cA = Math.cos(a), sA = Math.sin(a);
+    const cB = Math.cos(b), sB = Math.sin(b);
+    const cG = Math.cos(g), sG = Math.sin(g);
+
+    // Elements of the rotation matrix that map device Y-axis to Earth frame
+    // rA = -cos(alpha)*sin(gamma) - sin(alpha)*sin(beta)*cos(gamma)
+    // rB = -sin(alpha)*sin(gamma) + cos(alpha)*sin(beta)*cos(gamma)
+    const rA = -cA * sG - sA * sB * cG;
+    const rB = -sA * sG + cA * sB * cG;
+
+    // Compass heading (clockwise from North)
+    let heading = Math.atan2(rA, rB) * (180 / Math.PI);
+    if (heading < 0) heading += 360;
+
+    return heading;
   }
 
   // --- Angle Smoothing Helper (handles 0°/360° wrap-around) ---
@@ -441,8 +470,21 @@
         sensorAccuracy = event.webkitCompassAccuracy;
       }
     } else if (event.alpha !== null && event.alpha !== undefined) {
-      // Android / W3C: alpha goes 0-360 counter-clockwise
-      heading = ((360 - event.alpha) % 360 + 360) % 360;
+      // Android / W3C: Use tilt-compensated heading formula
+      // Raw alpha alone is inaccurate when the phone is tilted (natural viewing angle).
+      // The rotation-matrix projection accounts for beta (pitch) and gamma (roll)
+      // to produce a stable heading regardless of device tilt.
+      const beta  = (event.beta  !== null && event.beta  !== undefined) ? event.beta  : 0;
+      const gamma = (event.gamma !== null && event.gamma !== undefined) ? event.gamma : 0;
+
+      // Only use tilt compensation when we have meaningful tilt data
+      if (Math.abs(beta) > 0.5 || Math.abs(gamma) > 0.5) {
+        heading = tiltCompensatedHeading(event.alpha, beta, gamma);
+      } else {
+        // Phone is flat on a table — raw alpha inversion is fine
+        heading = ((360 - event.alpha) % 360 + 360) % 360;
+      }
+
       if (event.absolute === true || isAbsolute) {
         isAbsoluteOrientation = true;
       }
@@ -748,6 +790,11 @@
     infoModal.classList.add('hidden');
   });
 
+  // Close info modal on backdrop click
+  infoModal.addEventListener('click', (e) => {
+    if (e.target === infoModal) infoModal.classList.add('hidden');
+  });
+
   // --- Calibration & Alignment Studio Engine ---
   function updateCalibrationUI() {
     const calActiveOffsetVal = document.getElementById('calActiveOffsetVal');
@@ -891,7 +938,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.8.0')
+      navigator.serviceWorker.register('sw.js?v=3.9.0')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update
