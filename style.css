@@ -1029,6 +1029,223 @@ body {
   font-weight: 600;
 }
 
+/* ----------------- Calibration Studio Modal & Guides ----------------- */
+.cal-modal-icon {
+  font-size: 1.8rem;
+}
+
+.cal-status-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cal-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.cal-label {
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+}
+
+.cal-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.cal-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+}
+
+.badge-high {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.badge-med {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-low {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.fig8-guide-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.fig8-canvas-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fig8-svg {
+  display: block;
+}
+
+.fig8-path-anim {
+  stroke-dasharray: 40, 200;
+  stroke-dashoffset: 0;
+  animation: dashFigure8 3s linear infinite;
+}
+
+@keyframes dashFigure8 {
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+
+.fig8-phone-dot {
+  animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+.fig8-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fig8-instructions strong {
+  font-size: 0.85rem;
+  color: var(--accent-cyan);
+}
+
+.fig8-instructions span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.manual-offset-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.manual-offset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.manual-offset-header h4 {
+  font-size: 0.84rem;
+  color: var(--text-main);
+}
+
+.offset-badge {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.cal-hint {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+
+.offset-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.6fr 1fr 1fr;
+  gap: 6px;
+}
+
+.btn-offset-adjust {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 8px 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-offset-adjust:active {
+  background: var(--border-color);
+  transform: scale(0.95);
+}
+
+.btn-offset-reset {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.btn-set-north {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1.5px solid var(--accent-cyan);
+  color: var(--text-main);
+  border-radius: 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.btn-set-north:active {
+  background: var(--accent-cyan);
+  color: #07090e;
+  transform: scale(0.98);
+}
+
 /* ----------------- Utilities ----------------- */
 .hidden {
   display: none !important;

@@ -20,6 +20,16 @@
   let lastVibrateTime = 0;
   let lastVibratedCardinal = -1;
 
+  // Sensor Calibration & Smoothing
+  let calibrationOffset = 0;
+  try {
+    calibrationOffset = parseFloat(localStorage.getItem('kuberan-compass-offset')) || 0;
+  } catch(e) {}
+  let smoothedHeading = null;
+  const SMOOTHING_FACTOR = 0.22; // low-pass filter for rock-solid stability
+  let sensorAccuracy = null;
+  let isAbsoluteOrientation = false;
+
   // Themes list (Marine Brass is default)
   const THEMES = ['theme-marine', 'theme-tactical', 'theme-minimal', 'theme-night'];
   let currentThemeIndex = 0;
@@ -45,6 +55,16 @@
   const btnInfo = document.getElementById('btnInfo');
   const infoModal = document.getElementById('infoModal');
   const btnCloseModal = document.getElementById('btnCloseModal');
+  const calibrationModal = document.getElementById('calibrationModal');
+  const btnCloseCalModal = document.getElementById('btnCloseCalModal');
+  const btnCalibrate = document.getElementById('btnCalibrate');
+  const telemetryCalibrationItem = document.getElementById('telemetryCalibrationItem');
+  const btnOffsetMinus5 = document.getElementById('btnOffsetMinus5');
+  const btnOffsetMinus1 = document.getElementById('btnOffsetMinus1');
+  const btnOffsetReset = document.getElementById('btnOffsetReset');
+  const btnOffsetPlus1 = document.getElementById('btnOffsetPlus1');
+  const btnOffsetPlus5 = document.getElementById('btnOffsetPlus5');
+  const btnZeroToNorth = document.getElementById('btnZeroToNorth');
   const iosPermissionBanner = document.getElementById('iosPermissionBanner');
   const btnGrantSensor = document.getElementById('btnGrantSensor');
   const levelHousing = document.getElementById('levelHousing');
@@ -206,15 +226,29 @@
     return directions[idx];
   }
 
+  // --- Angle Smoothing Helper (handles 0°/360° wrap-around) ---
+  function smoothAngle(prev, target, factor) {
+    if (prev === null) return target;
+    let diff = (target - prev + 540) % 360 - 180;
+    return (prev + diff * factor + 360) % 360;
+  }
+
   // --- Update Compass Orientation ---
   function updateHeading(rawHeading) {
     if (typeof rawHeading === 'number' && !isNaN(rawHeading)) {
       rawMagneticHeading = ((rawHeading % 360) + 360) % 360;
     }
 
-    let trueHeading = rawMagneticHeading;
+    // Apply low-pass angular smoothing filter to eliminate magnetic jitter
+    smoothedHeading = smoothAngle(smoothedHeading, rawMagneticHeading, SMOOTHING_FACTOR);
+
+    // Apply manual calibration offset
+    let calibratedHeading = (smoothedHeading + calibrationOffset) % 360;
+    if (calibratedHeading < 0) calibratedHeading += 360;
+
+    let trueHeading = calibratedHeading;
     if (isTrueNorth) {
-      trueHeading = ((rawMagneticHeading + magneticDeclination) % 360 + 360) % 360;
+      trueHeading = ((calibratedHeading + magneticDeclination) % 360 + 360) % 360;
     }
 
     currentHeading = trueHeading;
@@ -356,15 +390,20 @@
   }
 
   function attachSensorListeners() {
-    // Primary: deviceorientationabsolute (W3C standard for true/absolute magnetic heading)
-    if ('ondeviceorientationabsolute' in window) {
-      window.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
-    } else if ('ondeviceorientation' in window) {
-      window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-    }
+    // 1. Android: Primary absolute orientation (Chrome & Android WebViews)
+    window.addEventListener('deviceorientationabsolute', handleDeviceOrientationAbsolute, true);
+
+    // 2. Standard deviceorientation (iOS provides webkitCompassHeading, Android fallback)
+    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
 
     // Fallback manual touch/mouse control if sensors aren't firing on desktop
     initDesktopDragSimulation();
+  }
+
+  function handleDeviceOrientationAbsolute(event) {
+    if (event.alpha === null && event.beta === null) return;
+    isAbsoluteOrientation = true;
+    processOrientationData(event, true);
   }
 
   function handleDeviceOrientation(event) {
@@ -376,8 +415,17 @@
       return; // Ignore empty dummy events from desktop browsers without hardware sensors
     }
 
+    // On Android, if absolute orientation is already active, don't overwrite with relative gyro
+    if (isAbsoluteOrientation && event.webkitCompassHeading === undefined) {
+      return;
+    }
+
+    processOrientationData(event, false);
+  }
+
+  function processOrientationData(event, isAbsolute) {
     hasSensorData = true;
-    sensorStatus.textContent = 'Hardware active';
+
     // Ensure permission banner is dismissed and saved as enabled once data arrives
     if (iosPermissionBanner && !iosPermissionBanner.classList.contains('hidden')) {
       iosPermissionBanner.classList.add('hidden');
@@ -386,14 +434,17 @@
 
     let heading = 0;
 
-    // iOS provides direct calibrated magnetic heading
+    // iOS provides direct calibrated magnetic heading and accuracy radius
     if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
       heading = event.webkitCompassHeading;
+      if (typeof event.webkitCompassAccuracy === 'number') {
+        sensorAccuracy = event.webkitCompassAccuracy;
+      }
     } else if (event.alpha !== null && event.alpha !== undefined) {
-      // Android: alpha goes 0-360 counter-clockwise
+      // Android / W3C: alpha goes 0-360 counter-clockwise
       heading = ((360 - event.alpha) % 360 + 360) % 360;
-      if (event.absolute === false) {
-        sensorStatus.textContent = 'Relative gyro';
+      if (event.absolute === true || isAbsolute) {
+        isAbsoluteOrientation = true;
       }
     }
 
@@ -422,6 +473,7 @@
     }
 
     updateOrientation(p, r);
+    updateCalibrationUI();
   }
 
   // --- Desktop / Fallback Drag Simulation ---
@@ -696,9 +748,117 @@
     infoModal.classList.add('hidden');
   });
 
-  infoModal.addEventListener('click', (e) => {
-    if (e.target === infoModal) infoModal.classList.add('hidden');
-  });
+  // --- Calibration & Alignment Studio Engine ---
+  function updateCalibrationUI() {
+    const calActiveOffsetVal = document.getElementById('calActiveOffsetVal');
+    const calOffsetBadge = document.getElementById('calOffsetBadge');
+    const calSensorBadge = document.getElementById('calSensorBadge');
+    const calAccuracyText = document.getElementById('calAccuracyText');
+    const sensorAccuracyBadge = document.getElementById('sensorAccuracyBadge');
+
+    const formattedOffset = `${calibrationOffset >= 0 ? '+' : ''}${calibrationOffset.toFixed(1)}°`;
+    if (calActiveOffsetVal) calActiveOffsetVal.textContent = formattedOffset;
+    if (calOffsetBadge) calOffsetBadge.textContent = formattedOffset;
+
+    let accLabel = 'Acc: ±3° (High)';
+    let badgeClass = 'badge-high';
+
+    if (sensorAccuracy !== null) {
+      if (sensorAccuracy < 0) {
+        accLabel = 'Uncalibrated';
+        badgeClass = 'badge-low';
+      } else if (sensorAccuracy <= 15) {
+        accLabel = `Acc: ±${Math.round(sensorAccuracy)}° (High)`;
+        badgeClass = 'badge-high';
+      } else if (sensorAccuracy <= 25) {
+        accLabel = `Acc: ±${Math.round(sensorAccuracy)}° (Good)`;
+        badgeClass = 'badge-med';
+      } else {
+        accLabel = `Acc: ±${Math.round(sensorAccuracy)}° (Interference)`;
+        badgeClass = 'badge-low';
+      }
+    } else if (isAbsoluteOrientation) {
+      accLabel = 'Acc: ±3° (Absolute)';
+      badgeClass = 'badge-high';
+    } else if (hasSensorData) {
+      accLabel = 'Relative Gyro';
+      badgeClass = 'badge-med';
+    } else {
+      accLabel = 'Sensors Inactive';
+      badgeClass = 'badge-low';
+    }
+
+    if (calAccuracyText) {
+      calAccuracyText.textContent = accLabel;
+    }
+    if (calSensorBadge) {
+      calSensorBadge.textContent = (isAbsoluteOrientation || (sensorAccuracy !== null && sensorAccuracy >= 0))
+        ? 'Magnetometer Active'
+        : 'Sensors Active';
+      calSensorBadge.className = `cal-badge ${badgeClass}`;
+    }
+    if (sensorAccuracyBadge) {
+      sensorAccuracyBadge.textContent = accLabel;
+    }
+  }
+
+  function setCalibrationOffset(offset) {
+    calibrationOffset = Math.round(offset * 10) / 10;
+    while (calibrationOffset > 180) calibrationOffset -= 360;
+    while (calibrationOffset < -180) calibrationOffset += 360;
+    try {
+      localStorage.setItem('kuberan-compass-offset', calibrationOffset.toString());
+    } catch(e) {}
+    updateCalibrationUI();
+    updateHeading(rawMagneticHeading);
+    showToast(`Offset: ${calibrationOffset >= 0 ? '+' : ''}${calibrationOffset.toFixed(1)}°`);
+  }
+
+  function adjustCalibrationOffset(delta) {
+    setCalibrationOffset(calibrationOffset + delta);
+  }
+
+  // Calibration Modal Event Handlers
+  if (btnCalibrate) {
+    btnCalibrate.addEventListener('click', () => {
+      calibrationModal.classList.remove('hidden');
+      updateCalibrationUI();
+    });
+  }
+
+  if (telemetryCalibrationItem) {
+    telemetryCalibrationItem.addEventListener('click', () => {
+      calibrationModal.classList.remove('hidden');
+      updateCalibrationUI();
+    });
+  }
+
+  if (btnCloseCalModal) {
+    btnCloseCalModal.addEventListener('click', () => {
+      calibrationModal.classList.add('hidden');
+    });
+  }
+
+  if (calibrationModal) {
+    calibrationModal.addEventListener('click', (e) => {
+      if (e.target === calibrationModal) calibrationModal.classList.add('hidden');
+    });
+  }
+
+  if (btnOffsetMinus5) btnOffsetMinus5.addEventListener('click', () => adjustCalibrationOffset(-5));
+  if (btnOffsetMinus1) btnOffsetMinus1.addEventListener('click', () => adjustCalibrationOffset(-1));
+  if (btnOffsetReset) btnOffsetReset.addEventListener('click', () => setCalibrationOffset(0));
+  if (btnOffsetPlus1) btnOffsetPlus1.addEventListener('click', () => adjustCalibrationOffset(1));
+  if (btnOffsetPlus5) btnOffsetPlus5.addEventListener('click', () => adjustCalibrationOffset(5));
+
+  if (btnZeroToNorth) {
+    btnZeroToNorth.addEventListener('click', () => {
+      // Calculate offset that aligns current raw heading to 0° North
+      const neededOffset = (360 - (rawMagneticHeading % 360)) % 360;
+      setCalibrationOffset(neededOffset > 180 ? neededOffset - 360 : neededOffset);
+      showToast('Zeroed to Current Heading');
+    });
+  }
 
   // --- Toast Notification ---
   function showToast(msg) {
@@ -731,7 +891,7 @@
   // --- Register Service Worker for Offline PWA ---
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=3.7.0')
+      navigator.serviceWorker.register('sw.js?v=3.8.0')
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
           // Check for immediate update
@@ -791,6 +951,7 @@
     buildDialSvg();
     initSensors();
     initGPS();
+    updateCalibrationUI();
 
     // Default heading display
     updateHeading(0);

@@ -6,17 +6,17 @@
   <title>KUBERAN Compass App - High-Precision Mobile Compass</title>
 
   <!-- PWA Settings -->
-  <link rel="manifest" href="manifest.webmanifest?v=3.7.0">
+  <link rel="manifest" href="manifest.webmanifest?v=3.8.0">
   <meta name="theme-color" content="#08111e">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="KUBERAN Compass">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3.7.0">
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=3.7.0">
-  <link rel="alternate icon" type="image/png" href="icon-192.png?v=3.7.0">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3.8.0">
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=3.8.0">
+  <link rel="alternate icon" type="image/png" href="icon-192.png?v=3.8.0">
 
-  <link rel="stylesheet" href="style.css?v=3.7.0">
+  <link rel="stylesheet" href="style.css?v=3.8.0">
 </head>
 <body class="theme-marine">
   <!-- Status / Safe Area Bar -->
@@ -196,13 +196,13 @@
           <span class="telemetry-sub" id="gpsAccuracy">Accuracy: ±-- m</span>
         </div>
 
-        <div class="telemetry-item">
+        <div class="telemetry-item" id="telemetryCalibrationItem" title="Tap to open Sensor Calibration Studio & Adjust Alignment">
           <div class="telemetry-item-header">
             <span class="telemetry-icon">🧲</span>
-            <span class="telemetry-title">DECLINATION</span>
+            <span class="telemetry-title">DECL / ACCURACY</span>
           </div>
           <span class="telemetry-val" id="gpsDeclination">0.0°</span>
-          <span class="telemetry-sub" id="sensorStatus">Sensors active</span>
+          <span class="telemetry-sub" id="sensorStatus"><span id="sensorAccuracyBadge">Acc: ±3° (High)</span></span>
         </div>
       </div>
 
@@ -214,6 +214,14 @@
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
           <span>Copy Coords</span>
+        </button>
+        <button id="btnCalibrate" class="btn-action" aria-label="Calibrate Compass Sensors & Adjust Alignment">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+            <circle cx="12" cy="12" r="2" fill="currentColor"/>
+          </svg>
+          <span>Calibrate</span>
         </button>
         <button id="btnInstallApp" class="btn-action btn-install hidden" title="Install to Home Screen" aria-label="Install App to Home Screen">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -229,6 +237,76 @@
     <!-- Toast Alert Notification -->
     <div id="toast" class="toast hidden">Copied to clipboard</div>
   </main>
+
+  <!-- Calibration Studio Modal -->
+  <div id="calibrationModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calModalTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-brand-wrap">
+          <div class="cal-modal-icon">🧭</div>
+          <div>
+            <h3 id="calModalTitle">Compass Calibration</h3>
+            <span class="modal-brand-sub">Hardware Magnetometer & Alignment</span>
+          </div>
+        </div>
+        <button id="btnCloseCalModal" class="btn-modal-close" aria-label="Close Calibration Modal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Live Sensor Health Status -->
+        <div class="cal-status-card">
+          <div class="cal-status-row">
+            <span class="cal-label">SENSOR STATUS:</span>
+            <span class="cal-badge badge-high" id="calSensorBadge">Hardware Active</span>
+          </div>
+          <div class="cal-status-row">
+            <span class="cal-label">CALIBRATION CONFIDENCE:</span>
+            <span class="cal-val" id="calAccuracyText">±3° (High Accuracy)</span>
+          </div>
+          <div class="cal-status-row">
+            <span class="cal-label">MANUAL OFFSET:</span>
+            <span class="cal-val" id="calActiveOffsetVal">0.0°</span>
+          </div>
+        </div>
+
+        <!-- 3D Figure-8 Calibration Guide -->
+        <div class="fig8-guide-card">
+          <div class="fig8-canvas-wrap">
+            <svg class="fig8-svg" viewBox="0 0 160 80" width="160" height="80">
+              <path d="M 40,40 C 40,20 15,20 15,40 C 15,60 40,60 80,40 C 120,20 145,20 145,40 C 145,60 120,60 80,40 Z" fill="none" stroke="var(--border-color)" stroke-width="3" stroke-dasharray="6,4"/>
+              <path d="M 40,40 C 40,20 15,20 15,40 C 15,60 40,60 80,40 C 120,20 145,20 145,40 C 145,60 120,60 80,40 Z" fill="none" stroke="var(--accent-cyan)" stroke-width="4" stroke-linecap="round" class="fig8-path-anim"/>
+              <circle cx="80" cy="40" r="6" fill="var(--accent-north)" class="fig8-phone-dot"/>
+            </svg>
+          </div>
+          <div class="fig8-instructions">
+            <strong>Wave Phone in Figure-8 Motion</strong>
+            <span>Gently wave your phone in a figure-8 pattern in the air 3 to 4 times to reset the internal magnetometer and clear local magnetic bias.</span>
+          </div>
+        </div>
+
+        <!-- Manual Offset Alignment -->
+        <div class="manual-offset-card">
+          <div class="manual-offset-header">
+            <h4>Manual Calibration Offset</h4>
+            <span class="offset-badge" id="calOffsetBadge">+0.0°</span>
+          </div>
+          <p class="cal-hint">Compensate for magnetic phone cases or fine-tune against an external reference needle.</p>
+          
+          <div class="offset-controls-grid">
+            <button class="btn-offset-adjust" id="btnOffsetMinus5">-5°</button>
+            <button class="btn-offset-adjust" id="btnOffsetMinus1">-1°</button>
+            <button class="btn-offset-adjust btn-offset-reset" id="btnOffsetReset">Reset (0°)</button>
+            <button class="btn-offset-adjust" id="btnOffsetPlus1">+1°</button>
+            <button class="btn-offset-adjust" id="btnOffsetPlus5">+5°</button>
+          </div>
+
+          <button class="btn-set-north" id="btnZeroToNorth">
+            🎯 Set Current Heading as True Reference
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Info & Install Modal -->
   <div id="infoModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -268,6 +346,7 @@
           <ul>
             <li>✨ 100% Offline Capability with Service Worker</li>
             <li>🧭 Real-time iOS & Android Compass Hardware Sensors</li>
+            <li>🎯 Advanced Sensor Calibration & Manual Alignment Studio</li>
             <li>⚖️ Dual-axis Pitch & Roll Inclinometer Bubble Level</li>
             <li>🎯 Target Heading / Bearing Deviation Lock</li>
             <li>📍 GPS Coordinates (Decimal + DMS), Altitude & Accuracy</li>
@@ -277,14 +356,14 @@
         </div>
 
         <div class="app-version">
-          <span>KUBERAN Compass App v3.7.0 • Official Edition</span>
+          <span>KUBERAN Compass App v3.8.0 • Official Edition</span>
           <a id="githubRepoLink" href="https://github.com/Jee1VK/compass-app" target="_blank" rel="noopener noreferrer">View GitHub Repo</a>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="qrcode.min.js?v=3.7.0"></script>
-  <script src="app.js?v=3.7.0"></script>
+  <script src="qrcode.min.js?v=3.8.0"></script>
+  <script src="app.js?v=3.8.0"></script>
 </body>
 </html>

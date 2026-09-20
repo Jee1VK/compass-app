@@ -27,7 +27,7 @@ You can install this directly to your phone's home screen as a standalone full-s
 
 ---
 
-## ✨ Features (v3.7.0)
+## ✨ Features (v3.8.0)
 
 - 🧭 **High-Precision Compass**:
   - Real-time magnetic heading and true north heading with automatic declination calculation.
@@ -36,6 +36,13 @@ You can install this directly to your phone's home screen as a standalone full-s
   - Degree numbers `90` below `E`, `180` below `S`, and `270` below `W` for effortless navigation.
   - Military NATO Mils scale (0–6400 mils) and back-azimuth calculation.
   - Authentic 8-point vintage nautical compass rose vector dial.
+  - Low-pass angular filter eliminating magnetometer jitter.
+- 🎯 **Sensor Calibration & Alignment Studio**:
+  - Dedicated **"Calibrate"** tool and live telemetry accuracy badge.
+  - Interactive **Figure-8 Gesture Guide** to reset internal magnetometer and clear magnetic interference.
+  - Live hardware calibration confidence metrics (`High`, `Good`, `Interference / Needs Cal`).
+  - **Manual Calibration Offset**: Nudge offset (`[-5°]`, `[-1°]`, `[+1°]`, `[+5°]`) or **"Set Current Heading as True Reference"** to compensate for magnetic phone cases or external magnetic bias.
+  - Persistent offset configuration saved in `localStorage`.
 - ⚖️ **Dual-Axis Bubble Level & Inclinometer**:
   - Center crosshairs bubble level for leveling tables, RVs, tripods, and surfaces.
   - Real-time **Pitch** (front-to-back tilt) and **Roll** (left-to-right tilt) digital readouts.
