@@ -559,7 +559,7 @@ body {
   transform: rotate(0deg);
   transform-origin: 50% 50%;
   will-change: transform;
-  transition: transform 0.05s linear;
+  transition: transform 80ms linear;
 }
 
 .dial-svg {

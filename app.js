@@ -225,306 +225,155 @@
     return directions[idx];
   }
 
-  // --- Tilt-Compensated Compass Heading (W3C / Rotation Matrix) ---
-  // On Android, raw alpha is NOT tilt-compensated. When the phone is tilted
-  // (held at natural 30-50° viewing angle), heading from raw alpha drifts.
-  // This formula projects the device's rotation matrix onto the horizontal
-  // plane to extract a true compass heading regardless of pitch/roll.
-  function tiltCompensatedHeading(alpha, beta, gamma) {
-    const degToRad = Math.PI / 180;
-    const a = (alpha || 0) * degToRad;
-    const b = (beta || 0)  * degToRad;
-    const g = (gamma || 0) * degToRad;
-
-    // Rotation matrix components (ZXY intrinsic Tait-Bryan angles)
-    const cA = Math.cos(a), sA = Math.sin(a);
-    const cB = Math.cos(b), sB = Math.sin(b);
-    const cG = Math.cos(g), sG = Math.sin(g);
-
-    // Elements of the rotation matrix that map device Y-axis to Earth frame
-    const rA = -cA * sG - sA * sB * cG;
-    const rB = -sA * sG + cA * sB * cG;
-
-    // Compass heading (clockwise from North)
-    let heading = Math.atan2(rA, rB) * (180 / Math.PI);
-    if (heading < 0) heading += 360;
-
-    return heading;
-  }
-
-  function calculateAndroidHeading(alpha, beta, gamma) {
-    const flatHeading = ((360 - (alpha || 0)) % 360 + 360) % 360;
-    const tiltMag = Math.sqrt((beta || 0) * (beta || 0) + (gamma || 0) * (gamma || 0));
-
-    if (tiltMag < 6) {
-      return flatHeading;
-    }
-
-    const compHeading = tiltCompensatedHeading(alpha, beta, gamma);
-
-    if (tiltMag >= 14) {
-      return compHeading;
-    }
-
-    // Smooth continuous blend between 6° and 14° tilt to prevent jump at small tilt angles
-    const factor = (tiltMag - 6) / 8;
-    return smoothAngle(flatHeading, compHeading, factor);
-  }
-
-  // --- Angle Smoothing Helper (handles 0°/360° wrap-around) ---
-  function smoothAngle(prev, target, factor) {
-    if (prev === null) return target;
-    let diff = (target - prev + 540) % 360 - 180;
-    return (prev + diff * factor + 360) % 360;
-  }
-
-  // --- Update Compass Orientation ---
-  function updateHeading(rawHeading) {
-    if (typeof rawHeading === 'number' && !isNaN(rawHeading)) {
-      rawMagneticHeading = ((rawHeading % 360) + 360) % 360;
-    }
-
-    // Apply low-pass angular smoothing filter to eliminate magnetic jitter
-    smoothedHeading = smoothAngle(smoothedHeading, rawMagneticHeading, SMOOTHING_FACTOR);
-
-    // Apply manual calibration offset
-    let calibratedHeading = (smoothedHeading + calibrationOffset) % 360;
-    if (calibratedHeading < 0) calibratedHeading += 360;
-
-    let trueHeading = calibratedHeading;
-    if (isTrueNorth) {
-      trueHeading = ((calibratedHeading + magneticDeclination) % 360 + 360) % 360;
-    }
-
-    currentHeading = trueHeading;
-    const rounded = Math.round(trueHeading);
-
-    // Rotate compass dial card (negative rotation so 0° points up to lubber line)
-    compassCard.style.transform = `rotate(${-trueHeading}deg)`;
-
-    // Update telemetry readouts
-    headingDegrees.textContent = rounded;
-    headingCardinal.textContent = getCardinal(trueHeading);
-    milsValue.textContent = Math.round((trueHeading / 360) * 6400);
-    backAzimuthValue.textContent = `${Math.round((trueHeading + 180) % 360)}°`;
-
-    // Target Deviation logic
-    if (targetHeading !== null) {
-      targetMarkerRing.style.transform = `rotate(${targetHeading - trueHeading}deg)`;
-      let diff = (targetHeading - trueHeading + 540) % 360 - 180;
-      const absDiff = Math.abs(Math.round(diff));
-
-      if (absDiff <= 2) {
-        devArrow.textContent = '🎯';
-        devText.textContent = 'ON TARGET';
-        targetDeviationBar.style.borderColor = 'var(--accent-level)';
-        targetDeviationBar.style.background = 'rgba(34, 197, 94, 0.15)';
-      } else if (diff > 0) {
-        devArrow.textContent = '▶';
-        devText.textContent = `${absDiff}° RIGHT`;
-        targetDeviationBar.style.borderColor = 'var(--accent-target)';
-        targetDeviationBar.style.background = 'rgba(245, 158, 11, 0.15)';
-      } else {
-        devArrow.textContent = '◀';
-        devText.textContent = `${absDiff}° LEFT`;
-        targetDeviationBar.style.borderColor = 'var(--accent-target)';
-        targetDeviationBar.style.background = 'rgba(245, 158, 11, 0.15)';
+  // --- Compass Engine Integration ---
+  const unwrapper = KuberanHeading.createUnwrapper();
+  
+  const engine = KuberanHeading.create({
+    onHeading: (magHeading, info) => {
+      hasSensorData = true;
+      if (iosPermissionBanner && !iosPermissionBanner.classList.contains('hidden')) {
+        iosPermissionBanner.classList.add('hidden');
       }
-    }
-
-    // Haptic feedback on cardinal points (0°, 90°, 180°, 270°) - single pulse upon crossing
-    if (hapticsEnabled && 'vibrate' in navigator) {
-      const cardinalIndex = [0, 90, 180, 270].findIndex(c => Math.abs(rounded - c) <= 1 || (c === 0 && rounded === 360));
-      const now = Date.now();
-      if (cardinalIndex !== -1 && cardinalIndex !== lastVibratedCardinal && (now - lastVibrateTime > 400)) {
-        navigator.vibrate(cardinalIndex === 0 ? [30, 40, 30] : 18);
-        lastVibrateTime = now;
-        lastVibratedCardinal = cardinalIndex;
-      } else if (cardinalIndex === -1) {
-        lastVibratedCardinal = -1;
+      try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
+      
+      sensorAccuracy = info.accuracy != null ? info.accuracy : null;
+      isAbsoluteOrientation = (info.source === 'absolute');
+      
+      rawMagneticHeading = magHeading;
+      
+      // Calculate final heading including declination and manual offset
+      let finalHeading = (magHeading + calibrationOffset) % 360;
+      if (finalHeading < 0) finalHeading += 360;
+      if (isTrueNorth) {
+         finalHeading = (finalHeading + magneticDeclination) % 360;
+         if (finalHeading < 0) finalHeading += 360;
       }
+      
+      currentHeading = finalHeading;
+      const rounded = Math.round(finalHeading);
+      
+      const unwrappedHeading = unwrapper(finalHeading);
+      compassCard.style.transform = `rotate(${-unwrappedHeading}deg)`;
+      
+      headingDegrees.textContent = rounded;
+      headingCardinal.textContent = getCardinal(finalHeading);
+      milsValue.textContent = Math.round((finalHeading / 360) * 6400);
+      backAzimuthValue.textContent = `${Math.round((finalHeading + 180) % 360)}°`;
+      
+      // Target Deviation logic
+      if (targetHeading !== null) {
+        targetMarkerRing.style.transform = `rotate(${targetHeading - finalHeading}deg)`;
+        let diff = (targetHeading - finalHeading + 540) % 360 - 180;
+        const absDiff = Math.abs(Math.round(diff));
+
+        if (absDiff <= 2) {
+          devArrow.textContent = '🎯';
+          devText.textContent = 'ON TARGET';
+          targetDeviationBar.style.borderColor = 'var(--accent-level)';
+          targetDeviationBar.style.background = 'rgba(34, 197, 94, 0.15)';
+        } else if (diff > 0) {
+          devArrow.textContent = '▶';
+          devText.textContent = `${absDiff}° RIGHT`;
+          targetDeviationBar.style.borderColor = 'var(--accent-target)';
+          targetDeviationBar.style.background = 'rgba(245, 158, 11, 0.15)';
+        } else {
+          devArrow.textContent = '◀';
+          devText.textContent = `${absDiff}° LEFT`;
+          targetDeviationBar.style.borderColor = 'var(--accent-target)';
+          targetDeviationBar.style.background = 'rgba(245, 158, 11, 0.15)';
+        }
+      }
+
+      if (hapticsEnabled && 'vibrate' in navigator) {
+        const cardinalIndex = [0, 90, 180, 270].findIndex(c => Math.abs(rounded - c) <= 1 || (c === 0 && rounded === 360));
+        const now = Date.now();
+        if (cardinalIndex !== -1 && cardinalIndex !== lastVibratedCardinal && (now - lastVibrateTime > 400)) {
+          navigator.vibrate(cardinalIndex === 0 ? [30, 40, 30] : 18);
+          lastVibrateTime = now;
+          lastVibratedCardinal = cardinalIndex;
+        } else if (cardinalIndex === -1) {
+          lastVibratedCardinal = -1;
+        }
+      }
+      
+      // Update Pitch & Roll
+      if (info.beta != null && info.gamma != null) {
+        let p = info.beta;
+        let r = info.gamma;
+        const orientationAngle = info.screenAngle || 0;
+        
+        if (orientationAngle === 90) {
+          const temp = p; p = -r; r = temp;
+        } else if (orientationAngle === -90 || orientationAngle === 270) {
+          const temp = p; p = r; r = -temp;
+        } else if (orientationAngle === 180) {
+          p = -p; r = -r;
+        }
+        
+        updateOrientation(p, r);
+      }
+      
+      updateCalibrationUI();
+    },
+    onStatus: (msg) => {
+       console.log('Engine status:', msg);
+       if (msg.includes('denied')) {
+         showToast('Permission denied for sensors');
+       }
     }
+  });
+
+  function updateHeading(newHeading) {
+     // Used primarily by fallback desktop drag simulation
+     rawMagneticHeading = newHeading;
+     
+     let finalHeading = (newHeading + calibrationOffset) % 360;
+     if (finalHeading < 0) finalHeading += 360;
+     if (isTrueNorth) {
+        finalHeading = (finalHeading + magneticDeclination) % 360;
+        if (finalHeading < 0) finalHeading += 360;
+     }
+     
+     currentHeading = finalHeading;
+     const rounded = Math.round(finalHeading);
+     const unwrappedHeading = unwrapper(finalHeading);
+     compassCard.style.transform = `rotate(${-unwrappedHeading}deg)`;
+     headingDegrees.textContent = rounded;
+     headingCardinal.textContent = getCardinal(finalHeading);
   }
 
-  // --- Dual-Axis Inclinometer / Bubble Level ---
-  function updateOrientation(p, r) {
-    pitch = p;
-    roll = r;
-
-    // Pitch is front-to-back tilt (-90 to +90)
-    // Roll is left-to-right tilt (-180 to +180)
-    const pitchDeg = Math.round(p);
-    const rollDeg = Math.round(r);
-
-    pitchValue.textContent = `${pitchDeg}°`;
-    rollValue.textContent = `${rollDeg}°`;
-
-    // Bar gauges (normalized from -45° to +45°)
-    const pitchNorm = Math.min(Math.max((p + 45) / 90 * 100, 0), 100);
-    const rollNorm = Math.min(Math.max((r + 45) / 90 * 100, 0), 100);
-    pitchGauge.style.width = `${pitchNorm}%`;
-    rollGauge.style.width = `${rollNorm}%`;
-
-    // Center Level Bubble physics
-    // Housing radius ~ 55px, max bubble offset ~ 40px
-    const maxOffset = 38;
-    const sensFactor = 2.4; // 15° reaches edge
-    const offsetX = Math.min(Math.max(r * sensFactor, -maxOffset), maxOffset);
-    const offsetY = Math.min(Math.max(p * sensFactor, -maxOffset), maxOffset);
-
-    levelBubble.style.transform = `translate(${offsetX.toFixed(1)}px, ${offsetY.toFixed(1)}px)`;
-
-    const totalTilt = Math.sqrt(p * p + r * r);
-    if (totalTilt <= 1.5) {
-      levelHousing.classList.add('is-level');
-      levelStatusCard.classList.add('level-locked');
-      levelStatusText.textContent = 'PERFECTLY LEVEL';
-
-      if (hapticsEnabled && 'vibrate' in navigator && (Date.now() - lastVibrateTime > 1000)) {
-        navigator.vibrate(25);
-        lastVibrateTime = Date.now();
-      }
-    } else {
-      levelHousing.classList.remove('is-level');
-      levelStatusCard.classList.remove('level-locked');
-      if (totalTilt <= 5) {
-        levelStatusText.textContent = 'NEARLY LEVEL';
-      } else {
-        levelStatusText.textContent = 'TILTED';
-      }
-    }
-  }
-
-  // --- Device Motion & Orientation Listeners ---
   function initSensors() {
     let previouslyGranted = false;
-    try {
-      previouslyGranted = localStorage.getItem('kuberan-sensors-enabled') === 'true';
-    } catch(e) {}
-
-    // Always attach sensor listeners right away
-    attachSensorListeners();
-
-    // 1. Check for iOS 13+ permission requirement
+    try { previouslyGranted = localStorage.getItem('kuberan-sensors-enabled') === 'true'; } catch(e) {}
+    
+    // Check for URL ?debug=1 parameter to enable debug view
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('debug')) {
+      engine.enableDebug();
+    }
+    
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      // If not previously granted, display the floating hover banner
       if (!previouslyGranted) {
         iosPermissionBanner.classList.remove('hidden');
+      } else {
+        engine.start({skipPermission: false});
       }
 
       btnGrantSensor.addEventListener('click', async () => {
-        try {
-          const response = await DeviceOrientationEvent.requestPermission();
-          if (response === 'granted') {
-            iosPermissionBanner.classList.add('hidden');
-            try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
-            attachSensorListeners();
-            showToast('Compass Sensors Activated');
-          } else {
-            showToast('Permission denied for sensors');
-          }
-        } catch (err) {
-          console.error(err);
-          // If already granted in a previous prompt or gesture error, attach listeners and hide
-          attachSensorListeners();
-          iosPermissionBanner.classList.add('hidden');
-          try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
+        const success = await engine.start({skipPermission: false});
+        if (success) {
+           iosPermissionBanner.classList.add('hidden');
+           try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
+           showToast('Compass Sensors Activated');
         }
       });
+    } else {
+      engine.start();
     }
-  }
-
-  function attachSensorListeners() {
-    // 1. Android: Primary absolute orientation (Chrome & Android WebViews)
-    window.addEventListener('deviceorientationabsolute', handleDeviceOrientationAbsolute, true);
-
-    // 2. Standard deviceorientation (iOS provides webkitCompassHeading, Android fallback)
-    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-
-    // Fallback manual touch/mouse control if sensors aren't firing on desktop
     initDesktopDragSimulation();
   }
 
-  function handleDeviceOrientationAbsolute(event) {
-    if (event.alpha === null && event.beta === null) return;
-    isAbsoluteOrientation = true;
-    processOrientationData(event, true);
-  }
-
-  function handleDeviceOrientation(event) {
-    const hasValidOrientation = (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) ||
-                                (event.alpha !== null && event.alpha !== undefined) ||
-                                (event.beta !== null && event.beta !== undefined);
-
-    if (!hasValidOrientation) {
-      return; // Ignore empty dummy events from desktop browsers without hardware sensors
-    }
-
-    // On Android, if absolute orientation is already active, don't overwrite with relative gyro
-    if (isAbsoluteOrientation && event.webkitCompassHeading === undefined) {
-      return;
-    }
-
-    processOrientationData(event, false);
-  }
-
-  function processOrientationData(event, isAbsolute) {
-    hasSensorData = true;
-
-    // Ensure permission banner is dismissed and saved as enabled once data arrives
-    if (iosPermissionBanner && !iosPermissionBanner.classList.contains('hidden')) {
-      iosPermissionBanner.classList.add('hidden');
-    }
-    try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
-
-    let heading = 0;
-
-    // iOS provides direct calibrated magnetic heading and accuracy radius
-    if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
-      heading = event.webkitCompassHeading;
-      if (typeof event.webkitCompassAccuracy === 'number') {
-        sensorAccuracy = event.webkitCompassAccuracy;
-      }
-    } else if (event.alpha !== null && event.alpha !== undefined) {
-      // Android / W3C: Use tilt-compensated heading with smooth transition
-      // Raw alpha alone is inaccurate when the phone is tilted (natural viewing angle).
-      // calculateAndroidHeading smoothly interpolates between flat and tilted angles.
-      heading = calculateAndroidHeading(event.alpha, event.beta, event.gamma);
-
-      if (event.absolute === true || isAbsolute) {
-        isAbsoluteOrientation = true;
-      }
-    }
-
-    // Handle landscape/portrait orientation adjustments (modern standard + legacy fallback)
-    const orientationAngle = (screen.orientation && typeof screen.orientation.angle === 'number')
-      ? screen.orientation.angle
-      : (typeof window.orientation === 'number' ? window.orientation : 0);
-
-    // Compensate compass heading for device rotation (e.g. landscape mode)
-    if (orientationAngle) {
-      heading = ((heading + orientationAngle) % 360 + 360) % 360;
-    }
-
-    updateHeading(heading);
-
-    // Pitch & Roll for bubble level
-    let p = event.beta || 0;  // Front-to-back tilt in [-180, 180]
-    let r = event.gamma || 0; // Left-to-right tilt in [-90, 90]
-
-    if (orientationAngle === 90) {
-      const temp = p; p = -r; r = temp;
-    } else if (orientationAngle === -90 || orientationAngle === 270) {
-      const temp = p; p = r; r = -temp;
-    } else if (orientationAngle === 180) {
-      p = -p; r = -r;
-    }
-
-    updateOrientation(p, r);
-    updateCalibrationUI();
-  }
-
-  // --- Desktop / Fallback Drag Simulation ---
+// --- Desktop / Fallback Drag Simulation ---
   function initDesktopDragSimulation() {
     let isDragging = false;
     let startAngle = 0;
