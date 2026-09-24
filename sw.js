@@ -1,26 +1,26 @@
-const CACHE_NAME = 'kuberan-compass-v3.9.4';
+const CACHE_NAME = 'kuberan-compass-v3.9.5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=3.9.4',
+  './style.css?v=3.9.5',
   './style.css',
-  './qrcode.min.js?v=3.9.4',
+  './qrcode.min.js?v=3.9.5',
   './qrcode.min.js',
-  './compass-engine.js?v=3.9.4',
+  './compass-engine.js?v=3.9.5',
   './compass-engine.js',
-  './app.js?v=3.9.4',
+  './app.js?v=3.9.5',
   './app.js',
-  './manifest.webmanifest?v=3.9.4',
+  './manifest.webmanifest?v=3.9.5',
   './manifest.webmanifest',
   './assets/images/kuberan_logo_white_bg.png',
   './assets/images/kuberan_logo_transparent.png',
-  './icon.svg?v=3.9.4',
+  './icon.svg?v=3.9.5',
   './icon.svg',
-  './icon-192.png?v=3.9.4',
+  './icon-192.png?v=3.9.5',
   './icon-192.png',
-  './icon-512.png?v=3.9.4',
+  './icon-512.png?v=3.9.5',
   './icon-512.png',
-  './apple-touch-icon.png?v=3.9.4',
+  './apple-touch-icon.png?v=3.9.5',
   './apple-touch-icon.png'
 ];
 
