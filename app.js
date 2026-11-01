@@ -1,6 +1,7 @@
 /**
  * KUBERAN Compass App - High Precision Mobile Compass & Inclinometer
  * Built for iOS Safari, Android Chrome, and Desktop Browsers.
+ * Version 5.0.0 • Official Kuberan Silks Edition
  */
 
 (function() {
@@ -25,14 +26,14 @@
   try {
     calibrationOffset = parseFloat(localStorage.getItem('kuberan-compass-offset')) || 0;
   } catch(e) {}
-  let smoothedHeading = null;
-  const SMOOTHING_FACTOR = 0.25; // low-pass filter — balanced responsiveness + stability
   let sensorAccuracy = null;
   let isAbsoluteOrientation = false;
-  // Celestial & Waypoint State
+
+  // Celestial, Waypoint & Tracking State
   let currentGpsPos = null;
   let selectedWpIcon = '🚗';
-
+  let activeSosController = null;
+  let trekTimerInterval = null;
 
   // Themes list (Marine Brass is default)
   const THEMES = ['theme-marine', 'theme-tactical', 'theme-minimal', 'theme-night'];
@@ -90,10 +91,44 @@
   const btnInstallApp = document.getElementById('btnInstallApp');
   const toast = document.getElementById('toast');
   const githubRepoLink = document.getElementById('githubRepoLink');
+
   // Audio & Navigation DOM Elements
   const btnAudioToggle = document.getElementById('btnAudioToggle');
   const audioPill = document.getElementById('audioPill');
   const bearingContainer = document.getElementById('bearingContainer');
+
+  // AR Camera DOM Elements
+  const btnToggleAr = document.getElementById('btnToggleAr');
+  const arCameraContainer = document.getElementById('arCameraContainer');
+  const arVideoFeed = document.getElementById('arVideoFeed');
+  const btnArSnapshot = document.getElementById('btnArSnapshot');
+  const btnCloseAr = document.getElementById('btnCloseAr');
+  const arHeadingText = document.getElementById('arHeadingText');
+  const arTiltText = document.getElementById('arTiltText');
+
+  // Tactical Night Vision & SOS Morse Elements
+  const btnToggleNightVision = document.getElementById('btnToggleNightVision');
+  const nightPill = document.getElementById('nightPill');
+  const btnToggleSos = document.getElementById('btnToggleSos');
+  const sosOverlay = document.getElementById('sosOverlay');
+  const btnStopSos = document.getElementById('btnStopSos');
+
+  // EMF Anomaly Elements
+  const emfPill = document.getElementById('emfPill');
+  const emfValue = document.getElementById('emfValue');
+  const emfWarningBanner = document.getElementById('emfWarningBanner');
+  const emfBannerTitle = document.getElementById('emfBannerTitle');
+  const emfBannerMsg = document.getElementById('emfBannerMsg');
+  const btnDismissEmf = document.getElementById('btnDismissEmf');
+
+  // Sundial Virtual Shadow & Star Markers
+  const sundialShadow = document.getElementById('sundialShadow');
+  const solarTimeVal = document.getElementById('solarTimeVal');
+  const eotVal = document.getElementById('eotVal');
+  const shadowLengthVal = document.getElementById('shadowLengthVal');
+  const sundialStatusBadge = document.getElementById('sundialStatusBadge');
+  const polarisMarker = document.getElementById('polarisMarker');
+  const cruxMarker = document.getElementById('cruxMarker');
 
   // Celestial Markers & Readouts
   const sunMarker = document.getElementById('sunMarker');
@@ -141,13 +176,28 @@
   const waypointsList = document.getElementById('waypointsList');
   const wpEmptyState = document.getElementById('wpEmptyState');
 
-  // 3-Tab Bottom Navigation Dock
+  // 4-Tab Bottom Navigation Dock
   const tabBtnCompass = document.getElementById('tabBtnCompass');
   const tabBtnCelestial = document.getElementById('tabBtnCelestial');
   const tabBtnWaypoints = document.getElementById('tabBtnWaypoints');
+  const tabBtnTracker = document.getElementById('tabBtnTracker');
   const tabPanelCompass = document.getElementById('tabPanelCompass');
   const tabPanelCelestial = document.getElementById('tabPanelCelestial');
   const tabPanelWaypoints = document.getElementById('tabPanelWaypoints');
+  const tabPanelTracker = document.getElementById('tabPanelTracker');
+
+  // GPS Trekking & GPX Controls
+  const btnToggleTrek = document.getElementById('btnToggleTrek');
+  const btnBacktrack = document.getElementById('btnBacktrack');
+  const btnExportGpx = document.getElementById('btnExportGpx');
+  const gpxFileInput = document.getElementById('gpxFileInput');
+  const trkRecBadge = document.getElementById('trkRecBadge');
+  const trkRecText = document.getElementById('trkRecText');
+  const trkPointCount = document.getElementById('trkPointCount');
+  const trkDistanceVal = document.getElementById('trkDistanceVal');
+  const trkDurationVal = document.getElementById('trkDurationVal');
+  const trkPaceVal = document.getElementById('trkPaceVal');
+  const trkElevVal = document.getElementById('trkElevVal');
 
 
   // --- Initialize Vector Compass Dial SVG ---
@@ -322,6 +372,32 @@
       headingCardinal.textContent = getCardinal(finalHeading);
       milsValue.textContent = Math.round((finalHeading / 360) * 6400);
       backAzimuthValue.textContent = `${Math.round((finalHeading + 180) % 360)}°`;
+
+      // Update AR HUD if active
+      if (arHeadingText) {
+        arHeadingText.textContent = `${String(rounded).padStart(3, '0')}° ${getCardinal(finalHeading)}`;
+      }
+
+      // EMF Magnetic Flux processing
+      if (typeof EmfEngine !== 'undefined') {
+        const emf = EmfEngine.processReading(
+          (info.gamma || 0) * 0.8,
+          (info.beta || 0) * 0.8,
+          45 + (sensorAccuracy || 0)
+        );
+        if (emfValue) emfValue.textContent = `${emf.magnitudeUT} µT`;
+        if (emfPill) {
+          if (emf.status === 'WARNING') {
+            emfPill.style.color = '#ef4444';
+            if (emfWarningBanner) emfWarningBanner.classList.remove('hidden');
+            if (emfBannerMsg) emfBannerMsg.textContent = emf.message;
+          } else if (emf.status === 'CAUTION') {
+            emfPill.style.color = '#f59e0b';
+          } else {
+            emfPill.style.color = 'var(--text-main)';
+          }
+        }
+      }
       
       // Target Deviation logic
       if (targetHeading !== null) {
@@ -438,13 +514,17 @@
     pitch = p;
     roll = r;
 
-    // Pitch is front-to-back tilt (-90 to +90)
-    // Roll is left-to-right tilt (-180 to +180)
     const pitchDeg = Math.round(p);
     const rollDeg = Math.round(r);
 
     if (pitchValue) pitchValue.textContent = `${pitchDeg}°`;
     if (rollValue) rollValue.textContent = `${rollDeg}°`;
+
+    if (arTiltText) {
+      const pStr = (pitchDeg >= 0 ? '+' : '') + pitchDeg;
+      const rStr = (rollDeg >= 0 ? '+' : '') + rollDeg;
+      arTiltText.textContent = `P: ${pStr}° R: ${rStr}°`;
+    }
 
     // Bar gauges (normalized from -45° to +45°)
     const pitchNorm = Math.min(Math.max((p + 45) / 90 * 100, 0), 100);
@@ -452,9 +532,9 @@
     if (pitchGauge) pitchGauge.style.width = `${pitchNorm}%`;
     if (rollGauge) rollGauge.style.width = `${rollNorm}%`;
 
-    // Center Level Bubble physics (housing radius ~55px, max bubble offset ~38px)
+    // Center Level Bubble physics
     const maxOffset = 38;
-    const sensFactor = 2.4; // 15° reaches edge
+    const sensFactor = 2.4;
     const offsetX = Math.min(Math.max(r * sensFactor, -maxOffset), maxOffset);
     const offsetY = Math.min(Math.max(p * sensFactor, -maxOffset), maxOffset);
 
@@ -528,7 +608,6 @@
     let previouslyGranted = false;
     try { previouslyGranted = localStorage.getItem('kuberan-sensors-enabled') === 'true'; } catch(e) {}
     
-    // Check for URL ?debug=1 parameter to enable debug view
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('debug')) {
       engine.enableDebug();
@@ -555,7 +634,7 @@
     initDesktopDragSimulation();
   }
 
-// --- Desktop / Fallback Drag Simulation ---
+  // --- Desktop / Fallback Drag Simulation ---
   function initDesktopDragSimulation() {
     let isDragging = false;
     let startAngle = 0;
@@ -578,10 +657,11 @@
     }
 
     function onMove(e) {
-      if (!isDragging) return;
+      if (!isDragging || hasSensorData) return;
       const currentAngle = getAngle(e);
-      const diff = currentAngle - startAngle;
-      const newHeading = (startHeading - diff + 360) % 360;
+      const delta = currentAngle - startAngle;
+      let newHeading = (startHeading - delta) % 360;
+      if (newHeading < 0) newHeading += 360;
       updateHeading(newHeading);
     }
 
@@ -595,7 +675,7 @@
 
     compassCard.addEventListener('touchstart', onStart, { passive: true });
     window.addEventListener('touchmove', onMove, { passive: true });
-    window.addEventListener('touchend', onEnd, { passive: true });
+    window.addEventListener('touchend', onEnd);
   }
 
   // --- GPS Geolocation Engine ---
@@ -618,10 +698,17 @@
     gpsAlt.textContent = (alt !== null && alt !== undefined && !isNaN(alt)) ? `${Math.round(alt)} m` : '-- m';
     gpsAccuracy.textContent = (acc !== null && acc !== undefined && !isNaN(acc)) ? `Accuracy: ±${Math.round(acc)} m` : 'Accuracy: ±-- m';
 
-    // Approximate Magnetic Declination (Simple model)
+    // Approximate Magnetic Declination
     calculateDeclination(lat, lng);
 
     currentGpsPos = { lat: lat, lng: lng, alt: alt };
+
+    // Record breadcrumb if active trek is recording
+    if (typeof TrackingEngine !== 'undefined' && TrackingEngine.isRecording()) {
+      TrackingEngine.addBreadcrumb(lat, lng, alt, Date.now(), coords.speed);
+      updateTrekUI();
+    }
+
     updateCelestialView();
     updateWaypointHud();
   }
@@ -649,7 +736,6 @@
       options
     );
 
-    // Allow user to tap telemetry panel to re-fetch GPS
     const telemetryGrid = document.querySelector('.telemetry-grid');
     if (telemetryGrid) {
       telemetryGrid.addEventListener('click', () => {
@@ -684,9 +770,7 @@
     return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
   }
 
-  // Approximation formula for Magnetic Declination
   function calculateDeclination(lat, lng) {
-    // World Magnetic Model approximation for rough declination estimation
     const decl = (lng - 80) * Math.sin(lat * Math.PI / 180) * 0.15;
     let rounded = Math.round(decl * 10) / 10;
     if (Object.is(rounded, -0) || Math.abs(rounded) === 0) rounded = 0;
@@ -746,7 +830,7 @@
     updateHeading(rawMagneticHeading);
   });
 
-  // --- Theme Switcher (Defaults to Marine Brass) ---
+  // --- Theme Switcher ---
   const THEME_COLORS = {
     'theme-marine': '#08111e',
     'theme-tactical': '#07090e',
@@ -770,17 +854,33 @@
     try {
       localStorage.setItem('kuberan-theme-v3', newTheme);
     } catch(e) {}
-    buildDialSvg(); // Re-render dial to match theme accent
+    buildDialSvg();
     showToast(`Theme: ${newTheme.replace('theme-', '').toUpperCase()}`);
   });
 
-  // Clear older stored theme to ensure Marine Brass is active by default for everyone
-  try {
-    localStorage.removeItem('aerocompass-theme');
-    localStorage.removeItem('compass-theme');
-  } catch(e) {}
+  // Tactical Night Vision button shortcut
+  if (btnToggleNightVision) {
+    btnToggleNightVision.addEventListener('click', () => {
+      const isNight = document.body.classList.contains('theme-night');
+      THEMES.forEach(t => document.body.classList.remove(t));
+      if (!isNight) {
+        document.body.classList.add('theme-night');
+        currentThemeIndex = THEMES.indexOf('theme-night');
+        applyThemeMetaColor('theme-night');
+        if (nightPill) nightPill.style.background = 'rgba(239, 68, 68, 0.4)';
+        showToast('Tactical Night Vision Activated');
+      } else {
+        document.body.classList.add('theme-marine');
+        currentThemeIndex = THEMES.indexOf('theme-marine');
+        applyThemeMetaColor('theme-marine');
+        if (nightPill) nightPill.style.background = '';
+        showToast('Marine Mode Restored');
+      }
+      buildDialSvg();
+    });
+  }
 
-  // Restore Theme: defaults to Marine Brass (theme-marine)
+  // Restore Theme
   let savedTheme = null;
   try {
     savedTheme = localStorage.getItem('kuberan-theme-v3');
@@ -796,7 +896,6 @@
     currentThemeIndex = 0;
     applyThemeMetaColor('theme-marine');
   }
-
 
   // --- Copy Coordinates ---
   btnCopyCoords.addEventListener('click', async () => {
@@ -831,7 +930,6 @@
     infoModal.classList.add('hidden');
   });
 
-  // Close info modal on backdrop click
   infoModal.addEventListener('click', (e) => {
     if (e.target === infoModal) infoModal.classList.add('hidden');
   });
@@ -876,18 +974,14 @@
       badgeClass = 'badge-low';
     }
 
-    if (calAccuracyText) {
-      calAccuracyText.textContent = accLabel;
-    }
+    if (calAccuracyText) calAccuracyText.textContent = accLabel;
     if (calSensorBadge) {
       calSensorBadge.textContent = (isAbsoluteOrientation || (sensorAccuracy !== null && sensorAccuracy >= 0))
         ? 'Magnetometer Active'
         : 'Sensors Active';
       calSensorBadge.className = `cal-badge ${badgeClass}`;
     }
-    if (sensorAccuracyBadge) {
-      sensorAccuracyBadge.textContent = accLabel;
-    }
+    if (sensorAccuracyBadge) sensorAccuracyBadge.textContent = accLabel;
   }
 
   function setCalibrationOffset(offset) {
@@ -906,32 +1000,10 @@
     setCalibrationOffset(calibrationOffset + delta);
   }
 
-  // Calibration Modal Event Handlers
-  if (btnCalibrate) {
-    btnCalibrate.addEventListener('click', () => {
-      calibrationModal.classList.remove('hidden');
-      updateCalibrationUI();
-    });
-  }
-
-  if (telemetryCalibrationItem) {
-    telemetryCalibrationItem.addEventListener('click', () => {
-      calibrationModal.classList.remove('hidden');
-      updateCalibrationUI();
-    });
-  }
-
-  if (btnCloseCalModal) {
-    btnCloseCalModal.addEventListener('click', () => {
-      calibrationModal.classList.add('hidden');
-    });
-  }
-
-  if (calibrationModal) {
-    calibrationModal.addEventListener('click', (e) => {
-      if (e.target === calibrationModal) calibrationModal.classList.add('hidden');
-    });
-  }
+  if (btnCalibrate) btnCalibrate.addEventListener('click', () => { calibrationModal.classList.remove('hidden'); updateCalibrationUI(); });
+  if (telemetryCalibrationItem) telemetryCalibrationItem.addEventListener('click', () => { calibrationModal.classList.remove('hidden'); updateCalibrationUI(); });
+  if (btnCloseCalModal) btnCloseCalModal.addEventListener('click', () => calibrationModal.classList.add('hidden'));
+  if (calibrationModal) calibrationModal.addEventListener('click', (e) => { if (e.target === calibrationModal) calibrationModal.classList.add('hidden'); });
 
   if (btnOffsetMinus5) btnOffsetMinus5.addEventListener('click', () => adjustCalibrationOffset(-5));
   if (btnOffsetMinus1) btnOffsetMinus1.addEventListener('click', () => adjustCalibrationOffset(-1));
@@ -941,7 +1013,6 @@
 
   if (btnZeroToNorth) {
     btnZeroToNorth.addEventListener('click', () => {
-      // Calculate offset that aligns current raw heading to 0° North
       const neededOffset = (360 - (rawMagneticHeading % 360)) % 360;
       setCalibrationOffset(neededOffset > 180 ? neededOffset - 360 : neededOffset);
       showToast('Zeroed to Current Heading');
@@ -982,7 +1053,6 @@
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
         .then((reg) => {
           console.log('KUBERAN Compass ServiceWorker registered:', reg.scope);
-          // Check for immediate update
           reg.update();
         })
         .catch((err) => console.log('ServiceWorker registration error:', err));
@@ -991,7 +1061,6 @@
     let refreshing = false;
     const hadController = Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // Only reload if the client was already controlled by an older worker (prevent first-install reload)
       if (!refreshing && hadController) {
         refreshing = true;
         window.location.reload();
@@ -1005,7 +1074,6 @@
     const qrcodeBox = document.getElementById('qrcodeBox');
     if (!qrcodeBox) return;
 
-    // Use live GitHub Pages URL if running locally so phone scans open the live app
     let url = 'https://jee1vk.github.io/compass-app/';
     if (window.location.protocol.startsWith('http') && 
         !window.location.hostname.includes('localhost') && 
@@ -1014,7 +1082,6 @@
     }
 
     qrcodeBox.innerHTML = '';
-    
     if (typeof QRCode !== 'undefined') {
       try {
         qrcodeInstance = new QRCode(qrcodeBox, {
@@ -1026,23 +1093,21 @@
           correctLevel: QRCode.CorrectLevel.M
         });
       } catch (err) {
-        console.warn('QR Code rendering fallback:', err);
-        qrcodeBox.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#07090e;font-size:12px;font-weight:600;word-break:break-all;text-align:center;">${url}</a>`;
+        qrcodeBox.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
       }
     } else {
-      qrcodeBox.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#07090e;font-size:12px;font-weight:600;word-break:break-all;text-align:center;">${url}</a>`;
+      qrcodeBox.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
     }
   }
 
-
-  // --- Celestial Astronomy Engine Wiring ---
+  // --- Celestial Astronomy, Sundial & Stargazer Wiring ---
   function updateCelestialView() {
     if (typeof CelestialEngine === 'undefined') return;
     const now = new Date();
-    const lat = currentGpsPos ? currentGpsPos.lat : 12.9716; // default Bangalore
+    const lat = currentGpsPos ? currentGpsPos.lat : 12.9716;
     const lng = currentGpsPos ? currentGpsPos.lng : 77.5946;
 
-    // Solar Position & Dial Marker
+    // 1. Solar Position & Dial Marker
     const solarPos = CelestialEngine.getSolarPosition(lat, lng, now);
     if (sunMarker) {
       sunMarker.style.transform = `rotate(${solarPos.azimuth}deg)`;
@@ -1065,7 +1130,53 @@
       }
     }
 
-    // Solar Times (Sunrise, Noon, Sunset, Golden Hour)
+    // 2. Sundial & Apparent Solar Time
+    if (typeof SundialEngine !== 'undefined') {
+      const solarTime = SundialEngine.calculateLocalApparentTime(now, lng);
+      if (solarTimeVal) solarTimeVal.textContent = solarTime.formatted;
+      if (eotVal) eotVal.textContent = `${solarTime.eotMinutes >= 0 ? '+' : ''}${solarTime.eotMinutes.toFixed(1)} m`;
+
+      // Virtual Gnomon Shadow Vector on Dial
+      const shadow = SundialEngine.calculateShadowVector(solarPos.elevation, solarPos.azimuth, currentHeading, 130);
+      if (sundialShadow) {
+        if (shadow.visible) {
+          sundialShadow.style.display = 'block';
+          sundialShadow.style.height = `${shadow.lengthPx}px`;
+          sundialShadow.style.transform = `translate(-50%, -100%) rotate(${shadow.dialAngleDeg}deg)`;
+          if (shadowLengthVal) shadowLengthVal.textContent = `${Math.round(shadow.lengthPx)} px`;
+          if (sundialStatusBadge) sundialStatusBadge.textContent = 'Active Shadow';
+        } else {
+          sundialShadow.style.display = 'none';
+          if (shadowLengthVal) shadowLengthVal.textContent = 'Night';
+          if (sundialStatusBadge) sundialStatusBadge.textContent = 'Night / Horizon';
+        }
+      }
+    }
+
+    // 3. Stargazer Celestial Guides (Polaris & Southern Cross)
+    if (typeof NightVisionEngine !== 'undefined') {
+      const polaris = NightVisionEngine.calculatePolarisPosition(lat, lng, now);
+      if (polarisMarker) {
+        if (polaris.visible) {
+          polarisMarker.style.display = 'block';
+          polarisMarker.style.transform = `rotate(${polaris.azimuth}deg) translateY(-185px) rotate(${-polaris.azimuth}deg)`;
+        } else {
+          polarisMarker.style.display = 'none';
+        }
+      }
+
+      const crux = NightVisionEngine.calculateSouthernCrossPosition(lat, lng, now);
+      if (cruxMarker) {
+        if (crux.visible) {
+          cruxMarker.style.display = 'block';
+          cruxMarker.style.transform = `rotate(${crux.azimuth}deg) translateY(-185px) rotate(${-crux.azimuth}deg)`;
+        } else {
+          cruxMarker.style.display = 'none';
+        }
+      }
+    }
+
+    // 4. Solar Times (Sunrise, Noon, Sunset, Golden Hour)
     const solarTimes = CelestialEngine.getSolarTimes(lat, lng, now);
     function formatTime(d) {
       if (!d) return '--:--';
@@ -1083,11 +1194,9 @@
       goldenHourVal.textContent = formatTime(solarTimes.goldenHourEvening.start);
     }
 
-    // Lunar Position & Dial Marker
+    // 5. Lunar Position & Dial Marker
     const lunarPos = CelestialEngine.getLunarPosition(lat, lng, now);
-    if (moonMarker) {
-      moonMarker.style.transform = `rotate(${lunarPos.azimuth}deg)`;
-    }
+    if (moonMarker) moonMarker.style.transform = `rotate(${lunarPos.azimuth}deg)`;
     if (moonFlag) moonFlag.textContent = lunarPos.phaseIcon;
     if (lunarPhaseIcon) lunarPhaseIcon.textContent = lunarPos.phaseIcon;
     if (lunarPhaseTitle) lunarPhaseTitle.textContent = lunarPos.phaseName;
@@ -1097,7 +1206,6 @@
     if (moonAgeVal) moonAgeVal.textContent = `${lunarPos.ageDays} d`;
   }
 
-  // Periodic 3-second update for celestial bodies
   setInterval(updateCelestialView, 3000);
 
   // --- Offline Waypoint Manager Wiring ---
@@ -1163,7 +1271,6 @@
     });
     waypointsList.innerHTML = html;
 
-    // Attach list button handlers
     waypointsList.querySelectorAll('.btn-wp-nav').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.target.getAttribute('data-id');
@@ -1200,12 +1307,232 @@
     }
   }
 
-  // --- 3-Tab Bottom Navigation Dock Wiring ---
+  // --- GPS Breadcrumb Trekking & GPX Engine Wiring ---
+  function updateTrekUI() {
+    if (typeof TrackingEngine === 'undefined') return;
+    const isRec = TrackingEngine.isRecording();
+    const points = TrackingEngine.getTrackPoints();
+    const distMeters = TrackingEngine.getTotalDistanceMeters();
+
+    if (trkRecBadge) {
+      trkRecBadge.className = isRec ? 'trk-rec-badge recording' : 'trk-rec-badge';
+    }
+    if (trkRecText) {
+      trkRecText.textContent = isRec ? 'RECORDING' : 'IDLE';
+    }
+    if (btnToggleTrek) {
+      btnToggleTrek.className = isRec ? 'btn-trek-primary btn-recording' : 'btn-trek-primary';
+      btnToggleTrek.textContent = isRec ? '⏹ Stop Recording Trek' : '▶ Start Recording Trek';
+    }
+    if (trkPointCount) {
+      trkPointCount.textContent = `${points.length} breadcrumb${points.length === 1 ? '' : 's'}`;
+    }
+    if (trkDistanceVal) {
+      trkDistanceVal.textContent = distMeters >= 1000 ? `${(distMeters / 1000).toFixed(2)} km` : `${Math.round(distMeters)} m`;
+    }
+    if (trkElevVal && currentGpsPos) {
+      trkElevVal.textContent = `${Math.round(currentGpsPos.alt || 0)} m`;
+    }
+
+    if (btnBacktrack) {
+      btnBacktrack.disabled = points.length === 0 || !currentGpsPos;
+    }
+    if (btnExportGpx) {
+      btnExportGpx.disabled = points.length === 0;
+    }
+  }
+
+  function startTrekTimer() {
+    if (trekTimerInterval) clearInterval(trekTimerInterval);
+    const start = Date.now();
+    trekTimerInterval = setInterval(() => {
+      if (typeof TrackingEngine === 'undefined' || !TrackingEngine.isRecording()) {
+        clearInterval(trekTimerInterval);
+        return;
+      }
+      const elapsedSec = Math.floor((Date.now() - start) / 1000);
+      const h = String(Math.floor(elapsedSec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((elapsedSec % 3600) / 60)).padStart(2, '0');
+      const s = String(elapsedSec % 60).padStart(2, '0');
+      if (trkDurationVal) trkDurationVal.textContent = `${h}:${m}:${s}`;
+
+      const distKm = TrackingEngine.getTotalDistanceMeters() / 1000;
+      const hours = elapsedSec / 3600;
+      const speed = hours > 0 ? (distKm / hours).toFixed(1) : '0.0';
+      if (trkPaceVal) trkPaceVal.textContent = `${speed} km/h`;
+    }, 1000);
+  }
+
+  function setupTrackingHandlers() {
+    if (btnToggleTrek) {
+      btnToggleTrek.addEventListener('click', () => {
+        if (typeof TrackingEngine === 'undefined') return;
+        if (!TrackingEngine.isRecording()) {
+          TrackingEngine.startRecording();
+          startTrekTimer();
+          updateTrekUI();
+          showToast('Trek recording started!');
+        } else {
+          const summary = TrackingEngine.stopRecording();
+          if (trekTimerInterval) clearInterval(trekTimerInterval);
+          updateTrekUI();
+          showToast(`Trek saved: ${(summary.totalDistanceMeters / 1000).toFixed(2)} km`);
+        }
+      });
+    }
+
+    // Backtrack Navigation
+    if (btnBacktrack) {
+      btnBacktrack.addEventListener('click', () => {
+        if (typeof TrackingEngine === 'undefined' || !currentGpsPos) return;
+        const backtrack = TrackingEngine.computeBacktrack(currentGpsPos.lat, currentGpsPos.lng);
+        if (backtrack) {
+          targetHeading = Math.round(backtrack.bearing);
+          targetValue.textContent = `${targetHeading}°`;
+          targetMarkerRing.style.display = 'block';
+          targetDeviationBar.classList.remove('hidden');
+          showToast(`↩ Backtracking to Start (${Math.round(backtrack.distance)}m)`);
+        }
+      });
+    }
+
+    // Export GPX File
+    if (btnExportGpx) {
+      btnExportGpx.addEventListener('click', () => {
+        if (typeof TrackingEngine === 'undefined') return;
+        const waypoints = (typeof WaypointEngine !== 'undefined') ? WaypointEngine.getWaypoints() : [];
+        const gpxXml = TrackingEngine.exportGPX('Compass Trek', waypoints);
+        const blob = new Blob([gpxXml], { type: 'application/gpx+xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kuberan-trek-${Date.now()}.gpx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('GPX file downloaded!');
+      });
+    }
+
+    // Import GPX File
+    if (gpxFileInput) {
+      gpxFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const parsed = TrackingEngine.parseGPX(evt.target.result);
+            if (typeof WaypointEngine !== 'undefined' && parsed.waypoints.length > 0) {
+              parsed.waypoints.forEach(wpt => {
+                WaypointEngine.addWaypoint(wpt.name, wpt.lat, wpt.lon, wpt.ele, wpt.icon || '📍');
+              });
+              renderWaypointsList();
+              showToast(`Imported ${parsed.waypoints.length} waypoints from GPX!`);
+            } else {
+              showToast('GPX parsed, but no waypoints found');
+            }
+          } catch (err) {
+            console.error('GPX parse error:', err);
+            showToast('Invalid GPX file format');
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+  }
+
+  // --- AR Camera Sighting HUD Handlers ---
+  function setupArCamera() {
+    if (btnToggleAr && arCameraContainer) {
+      btnToggleAr.addEventListener('click', async () => {
+        if (typeof CameraHudEngine === 'undefined') return;
+        showToast('Initializing camera feed...');
+        const res = await CameraHudEngine.startCamera(arVideoFeed);
+        if (res.success) {
+          arCameraContainer.classList.remove('hidden');
+          showToast('AR Camera Sighting Active');
+        } else {
+          showToast(res.error || 'Camera unavailable');
+        }
+      });
+    }
+
+    if (btnCloseAr && arCameraContainer) {
+      btnCloseAr.addEventListener('click', () => {
+        if (typeof CameraHudEngine !== 'undefined') {
+          CameraHudEngine.stopCamera(arVideoFeed);
+        }
+        arCameraContainer.classList.add('hidden');
+      });
+    }
+
+    if (btnArSnapshot && arVideoFeed) {
+      btnArSnapshot.addEventListener('click', () => {
+        if (typeof CameraHudEngine === 'undefined') return;
+        const dataUrl = CameraHudEngine.captureSnapshot(
+          arVideoFeed,
+          currentHeading,
+          getCardinal(currentHeading),
+          pitch,
+          roll,
+          currentGpsPos
+        );
+        if (dataUrl) {
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `kuberan-sighting-${Date.now()}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          showToast('Sighting photo saved!');
+        } else {
+          showToast('Could not capture frame');
+        }
+      });
+    }
+  }
+
+  // --- Emergency SOS Morse Strobe Handlers ---
+  function setupSosStrobe() {
+    if (btnToggleSos && sosOverlay) {
+      btnToggleSos.addEventListener('click', () => {
+        if (typeof NightVisionEngine === 'undefined') return;
+        const videoTrack = (typeof CameraHudEngine !== 'undefined') ? CameraHudEngine.getActiveTrack() : null;
+        sosOverlay.classList.remove('hidden');
+        activeSosController = NightVisionEngine.startMorseStrobe(videoTrack, (isOn) => {
+          sosOverlay.classList.toggle('flash-on', isOn);
+        });
+      });
+    }
+
+    if (btnStopSos && sosOverlay) {
+      btnStopSos.addEventListener('click', () => {
+        if (activeSosController) {
+          activeSosController.stop();
+          activeSosController = null;
+        }
+        sosOverlay.classList.add('hidden');
+        sosOverlay.classList.remove('flash-on');
+      });
+    }
+
+    if (btnDismissEmf && emfWarningBanner) {
+      btnDismissEmf.addEventListener('click', () => {
+        emfWarningBanner.classList.add('hidden');
+      });
+    }
+  }
+
+  // --- 4-Tab Bottom Navigation Dock Wiring ---
   function setupTabs() {
     const tabs = [
       { btn: tabBtnCompass, panel: tabPanelCompass },
       { btn: tabBtnCelestial, panel: tabPanelCelestial },
-      { btn: tabBtnWaypoints, panel: tabPanelWaypoints }
+      { btn: tabBtnWaypoints, panel: tabPanelWaypoints },
+      { btn: tabBtnTracker, panel: tabPanelTracker }
     ];
 
     tabs.forEach(t => {
@@ -1231,6 +1558,8 @@
           updateCelestialView();
         } else if (t.panel === tabPanelWaypoints) {
           renderWaypointsList();
+        } else if (t.panel === tabPanelTracker) {
+          updateTrekUI();
         }
       });
     });
@@ -1238,7 +1567,6 @@
 
   // --- Audio & Waypoint Modal Event Handlers ---
   function setupAudioAndWaypoints() {
-    // Audio Toggle
     if (btnAudioToggle) {
       btnAudioToggle.addEventListener('click', () => {
         if (typeof AudioEngine !== 'undefined') {
@@ -1251,7 +1579,6 @@
         }
       });
 
-      // Initialize audio pill display from saved state
       if (typeof AudioEngine !== 'undefined' && audioPill) {
         const muted = AudioEngine.isMuted();
         audioPill.textContent = muted ? '🔇' : '🔊';
@@ -1259,7 +1586,6 @@
       }
     }
 
-    // Spoken Heading Announcement on readout tap
     if (bearingContainer) {
       bearingContainer.addEventListener('click', () => {
         if (typeof AudioEngine !== 'undefined') {
@@ -1268,7 +1594,6 @@
       });
     }
 
-    // Mark Waypoint modal triggers
     if (btnMarkSpotAction) btnMarkSpotAction.addEventListener('click', openMarkModal);
     if (btnOpenMarkModal) btnOpenMarkModal.addEventListener('click', openMarkModal);
     if (btnEmptyMark) btnEmptyMark.addEventListener('click', openMarkModal);
@@ -1276,7 +1601,6 @@
     if (btnCloseWpModal) btnCloseWpModal.addEventListener('click', () => waypointModal.classList.add('hidden'));
     if (btnCancelWp) btnCancelWp.addEventListener('click', () => waypointModal.classList.add('hidden'));
 
-    // Icon Selector
     document.querySelectorAll('.wp-icon-choice').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.wp-icon-choice').forEach(b => b.classList.remove('active'));
@@ -1285,7 +1609,6 @@
       });
     });
 
-    // Confirm Save Waypoint
     if (btnConfirmSaveWp) {
       btnConfirmSaveWp.addEventListener('click', () => {
         if (!currentGpsPos) {
@@ -1300,7 +1623,6 @@
       });
     }
 
-    // Dismiss active waypoint HUD
     if (btnDismissActiveWp) {
       btnDismissActiveWp.addEventListener('click', () => {
         WaypointEngine.clearActiveWaypoint();
@@ -1326,14 +1648,16 @@
     updateCalibrationUI();
     setupTabs();
     setupAudioAndWaypoints();
+    setupTrackingHandlers();
+    setupArCamera();
+    setupSosStrobe();
     updateCelestialView();
     renderWaypointsList();
+    updateTrekUI();
 
-    // Default heading display
     updateHeading(0);
     updateOrientation(0, 0);
 
-    // Update GitHub repo link based on actual host or default
     if (window.location.hostname.includes('github.io')) {
       const parts = window.location.pathname.split('/').filter(Boolean);
       const repoName = parts[0] || 'compass-app';

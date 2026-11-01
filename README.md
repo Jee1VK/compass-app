@@ -1,6 +1,6 @@
-# 🧭 KUBERAN Compass App - High-Precision Mobile Compass, Celestial Ephemeris & Waypoint Navigator
+# 🧭 KUBERAN Compass App - High-Precision Mobile Compass, AR Sighting HUD, Celestial Ephemeris, GPX Trek Tracker & Waypoint Navigator
 
-A sleek, downloadable **Wilderness & Celestial Navigation Progressive Web App (PWA)** built for iOS (Safari) and Android (Chrome / Samsung Internet), with 100% offline support, zero ads, zero tracking, and instant load time. Official edition presented by [Kuberan Silks](https://kuberansilks.com/).
+A sleek, downloadable **Wilderness, Celestial & Sighting Navigation Progressive Web App (PWA)** built for iOS (Safari) and Android (Chrome / Samsung Internet), with 100% offline support, zero ads, zero tracking, and instant load time. Official edition presented by [Kuberan Silks](https://kuberansilks.com/).
 
 📱 **Live Web App & Mobile Install:** [https://jee1vk.github.io/compass-app/](https://jee1vk.github.io/compass-app/)  
 🏪 **Official Store:** [https://kuberansilks.com/](https://kuberansilks.com/)
@@ -27,21 +27,38 @@ You can install this directly to your phone's home screen as a standalone full-s
 
 ---
 
-## ✨ Features (v4.0.0)
+## ✨ Features (v5.0.0)
 
+- 📷 **AR Camera Sighting HUD**:
+  - Activates live environmental camera feed behind a precision HUD reticle with mil-dot spacing and horizon pitch ladder.
+  - Real-time digital sighting telemetry (Azimuth, Pitch, Roll, GPS Coordinates, Altitude).
+  - **Snap Sighting Photo**: Burn current heading, elevation, timestamp, and coordinates directly onto a saved survey snapshot.
+- 🗺️ **GPS Breadcrumb Trek Tracker & Universal GPX 1.1**:
+  - Offline trip recording with real-time distance, elapsed time, average pace, and elevation gain.
+  - **Backtrack ("Return to Start")**: Calculates instant direct reverse azimuth and distance back to your trek origin if lost on a trail.
+  - **Export GPX**: Download standard `.gpx` files to visualize tracks and waypoints in Google Earth, Gaia GPS, or Garmin.
+  - **Import GPX**: Upload `.gpx` trail files and load waypoints directly into your offline navigation database.
+- 🕒 **Virtual Sundial & Local Apparent Solar Time**:
+  - Interactive virtual gnomon shadow projected directly onto the compass dial matching real-time solar elevation and azimuth.
+  - Authentic calculation of the **Equation of Time (EoT)** and **True Solar Time** based on your exact longitude.
+- 🔴 **Tactical Night Vision & Stargazer Guide**:
+  - Monochromatic aviation red mode ($650\text{ nm}$ palette) preserving human rhodopsin dark-adapted night vision.
+  - Celestial navigation guides on the dial tracking **Polaris (North Star)** in the Northern Hemisphere and the **Southern Cross (Crux)** in Southern/tropical skies.
+- 🆘 **Emergency SOS Morse Code Flasher**:
+  - Broadcasts international Morse code `· · · — — — · · ·` via device camera torch and high-contrast full-screen strobe with emergency stop controls.
+- 🧲 **EMF Magnetic Flux Density & Metal Distortion Alert**:
+  - Live microtesla ($\mu\text{T}$) magnetic field readout with automated baseline tracking.
+  - Real-time distortion detection warning if nearby steel beams, rebar, or electronics compromise compass accuracy.
 - 🧭 **High-Precision Compass**:
   - Real-time magnetic heading and true north heading with automatic declination calculation.
   - **Zero-Deflection 3D Tilt Compensation**: True Euler projection keeps the compass rock-solid across all natural reading angles ($0^\circ-78^\circ$) without roll-induced drift.
   - Automatic landscape & portrait screen orientation compensation.
-  - Cardinal & Intercardinal typography (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`).
   - Military NATO Mils scale (0–6400 mils) and back-azimuth calculation.
   - Authentic 8-point vintage nautical compass rose vector dial.
-  - Continuous angle unwrapper preventing full $360^\circ$ reverse needle spinning.
 - ☀️ **Solar Ephemeris & Golden Hour Studio**:
   - Live **☀️ Golden Sun marker** on the compass dial showing exact real-time sun azimuth.
   - Instant local calculation of **Sunrise**, **Solar Noon**, **Sunset**, and **Day Length**.
-  - **Golden Hour** and **Blue Hour** countdown timer for photography and outdoor expeditions.
-  - Real-time Solar Elevation angle (above/below horizon).
+  - **Golden Hour** and **Blue Hour** countdown timer for outdoor expeditions and photography.
 - 🌙 **Lunar Tracking & Moon Phase Studio**:
   - Live **🌙 Moon crescent marker** on the compass dial tracking moon azimuth.
   - Real-time Moon Phase determination (New Moon, Crescent, Quarter, Gibbous, Full Moon).
@@ -53,19 +70,13 @@ You can install this directly to your phone's home screen as a standalone full-s
 - 🔊 **Synthetic Web Audio & Spoken Heading**:
   - **Acoustic Bearing Alignment**: Soft, harmonic audio pulses that speed up as you align with North, target bearing, or saved waypoints. Locks with a crystal dual-tone chime when within $\pm 1.5^\circ$.
   - **Spoken Heading Mode**: Tap the main degree readout to hear the current heading and cardinal direction announced via speech synthesis.
-  - One-tap sound mute/unmute control in the header.
-- 🎯 **Sensor Calibration & Alignment Studio**:
-  - Dedicated **"Calibrate"** tool and live telemetry accuracy badge.
-  - Symmetrical **Lemniscate Figure-8 Motion Guide** with real-time animated travelling device to reset magnetometer and eliminate hard/soft iron interference.
-  - **Manual Calibration Offset**: Nudge offset (`[-5°]`, `[-1°]`, `[+1°]`, `[+5°]`) or **"Set Current Heading as True Reference"**.
 - ⚖️ **Dual-Axis Bubble Level & Inclinometer**:
   - Center crosshairs bubble level for leveling tables, RVs, tripods, and surfaces.
-  - Real-time **Pitch** (front-to-back tilt) and **Roll** (left-to-right tilt) digital readouts.
-  - Turns glowing neon green with subtle haptic vibration when perfectly level ($\le 1.5^\circ$).
+  - Real-time **Pitch** and **Roll** digital readouts with glowing green lock indicator when level ($\le 1.5^\circ$).
 - 🎨 **4 Visual Themes**:
-  1. **Marine Brass (Default)**: Vintage nautical brass dial and deep ocean navy styling with authentic 8-point compass rose.
+  1. **Marine Brass (Default)**: Vintage nautical brass dial and deep ocean navy styling.
   2. **Tactical OLED**: Stealth high-contrast neon cyan & military amber on pitch black.
   3. **Minimalist Glass**: Crisp monochrome typography and dark frosted glass.
-  4. **Night Vision Red**: Red monochrome theme preserving night-adapted vision for astronomy and tactical field use.
+  4. **Night Vision Red**: Monochromatic deep red theme.
 - ⚡ **100% Offline Capability**:
   - Zero external runtime network dependencies, zero telemetry, zero ads. Built with Service Worker Cache API. Operates seamlessly in deep wilderness with no cellular reception or internet.
