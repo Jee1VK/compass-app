@@ -4,25 +4,72 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>KUBERAN Compass App • Official Edition</title>
-  <meta name="description" content="High-precision mobile compass, dual-axis inclinometer bubble level, GPS telemetry, solar ephemeris, and offline waypoint navigation for iOS & Android.">
+  <meta name="description" content="High-precision mobile compass, dual-axis inclinometer bubble level, GPS telemetry, solar ephemeris, AR camera sighting, and offline waypoint navigation for iOS & Android.">
   <meta name="theme-color" content="#08111e">
 
   <!-- PWA & Mobile Icons -->
-  <link rel="manifest" href="manifest.webmanifest?v=4.0.0">
+  <link rel="manifest" href="manifest.webmanifest?v=5.0.0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kuberan Compass">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="format-detection" content="telephone=no">
 
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.0.0">
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=4.0.0">
-  <link rel="alternate icon" type="image/png" href="icon-192.png?v=4.0.0">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=5.0.0">
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=5.0.0">
+  <link rel="alternate icon" type="image/png" href="icon-192.png?v=5.0.0">
 
-  <link rel="stylesheet" href="style.css?v=4.0.0">
+  <link rel="stylesheet" href="style.css?v=5.0.0">
 </head>
 <body class="theme-marine">
   <div class="stars-bg"></div>
+
+  <!-- Fullscreen AR Camera Background & Sighting Viewport -->
+  <div id="arCameraContainer" class="ar-camera-container hidden">
+    <video id="arVideoFeed" class="ar-video-feed" playsinline muted autoplay></video>
+    <div class="ar-hud-overlay">
+      <svg id="arReticleSvg" class="ar-reticle-svg" viewBox="0 0 400 400">
+        <circle cx="200" cy="200" r="85" class="ar-reticle-circle" />
+        <circle cx="200" cy="200" r="3" class="ar-reticle-dot" />
+        <line x1="200" y1="40" x2="200" y2="165" class="ar-reticle-crosshair" />
+        <line x1="200" y1="235" x2="200" y2="360" class="ar-reticle-crosshair" />
+        <line x1="40" y1="200" x2="165" y2="200" class="ar-reticle-crosshair" />
+        <line x1="235" y1="200" x2="360" y2="200" class="ar-reticle-crosshair" />
+      </svg>
+      <div class="ar-telemetry-badge" id="arTelemetryBadge">
+        <span id="arHeadingText">000° N</span> • <span id="arTiltText">P: 0° R: 0°</span>
+      </div>
+      <div class="ar-bottom-controls">
+        <button id="btnArSnapshot" class="btn-ar-capture" title="Take Sighting Photo with Telemetry">
+          <span class="ar-cap-icon">📸</span>
+          <span>SNAP SIGHTING</span>
+        </button>
+        <button id="btnCloseAr" class="btn-ar-close" title="Exit AR Mode">✕ EXIT AR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen SOS Morse Strobe Overlay -->
+  <div id="sosOverlay" class="sos-overlay hidden">
+    <div class="sos-content">
+      <div class="sos-banner">EMERGENCY SOS ACTIVE</div>
+      <div class="sos-morse-text">· · · — — — · · ·</div>
+      <div class="sos-desc">Flashing screen and camera torch in international Morse Code</div>
+      <button id="btnStopSos" class="btn-sos-stop">STOP SOS STROBE</button>
+    </div>
+  </div>
+
+  <!-- EMF Anomaly Alert Banner -->
+  <div id="emfWarningBanner" class="emf-banner hidden">
+    <div class="emf-banner-body">
+      <span class="emf-banner-icon">⚠️</span>
+      <div class="emf-banner-text">
+        <strong id="emfBannerTitle">Magnetic Distortion Detected!</strong>
+        <span id="emfBannerMsg">Nearby steel, rebar, or electronics may affect compass accuracy.</span>
+      </div>
+      <button id="btnDismissEmf" class="btn-emf-dismiss">✕</button>
+    </div>
+  </div>
 
   <!-- Primary Application Wrapper -->
   <main class="app-container" id="app">
@@ -42,6 +89,18 @@
         <!-- Audio / Sound Toggle -->
         <button id="btnAudioToggle" class="icon-btn" title="Toggle Sound / Audio Chime" aria-label="Toggle Sound">
           <span id="audioPill" class="mode-pill mode-muted">🔇</span>
+        </button>
+        <!-- AR Camera Sighting Toggle -->
+        <button id="btnToggleAr" class="icon-btn" title="AR Camera Sighting HUD" aria-label="AR Camera HUD">
+          <span class="mode-pill">📷 AR</span>
+        </button>
+        <!-- Tactical Night Vision (Red Mode) Toggle -->
+        <button id="btnToggleNightVision" class="icon-btn" title="Tactical Night Vision (Red Mode)" aria-label="Night Vision">
+          <span class="mode-pill" id="nightPill">🔴</span>
+        </button>
+        <!-- SOS Morse Strobe Button -->
+        <button id="btnToggleSos" class="icon-btn" title="Emergency SOS Morse Flasher" aria-label="SOS Morse Flasher">
+          <span class="mode-pill mode-sos">🆘</span>
         </button>
         <!-- North Mode Toggle -->
         <button id="btnToggleNorth" class="icon-btn" title="Toggle True/Magnetic North" aria-label="Toggle North Mode">
@@ -110,6 +169,10 @@
           <span class="label">BACK AZ</span>
           <span class="val" id="backAzimuthValue">180°</span>
         </div>
+        <div class="telemetry-pill" id="emfPill" title="Magnetic Field Flux Density">
+          <span class="label">EMF</span>
+          <span class="val" id="emfValue">45 µT</span>
+        </div>
       </div>
 
       <div id="targetDeviationBar" class="deviation-bar hidden">
@@ -141,6 +204,10 @@
 
         <!-- Rotating Compass Card -->
         <div class="compass-card" id="compassCard">
+          <!-- Virtual Sundial Shadow Line -->
+          <div class="sundial-shadow" id="sundialShadow" title="Virtual Sundial Shadow"></div>
+          <div class="sundial-pin" id="sundialPin"></div>
+
           <!-- Dial SVG with high-res precision ticks and typography -->
           <svg class="dial-svg" viewBox="0 0 500 500" id="dialSvg">
             <!-- Dynamic elements built via app.js for ultra-sharp vector scaling -->
@@ -154,6 +221,16 @@
           <!-- Real-Time Celestial Moon Marker -->
           <div class="celestial-marker moon-marker" id="moonMarker" title="Moon Azimuth">
             <div class="marker-flag moon-flag" id="moonFlag">🌙</div>
+          </div>
+
+          <!-- Real-Time Celestial Polaris (North Star) Marker -->
+          <div class="celestial-marker polaris-marker" id="polarisMarker" title="Polaris (North Star)">
+            <div class="marker-flag polaris-flag">⭐</div>
+          </div>
+
+          <!-- Real-Time Celestial Southern Cross Marker -->
+          <div class="celestial-marker crux-marker" id="cruxMarker" title="Southern Cross (Crux)">
+            <div class="marker-flag crux-flag">✨</div>
           </div>
         </div>
 
@@ -185,7 +262,7 @@
       <button id="btnDismissActiveWp" class="btn-hud-dismiss" title="Stop Navigating" aria-label="Stop Navigating">✕</button>
     </div>
 
-    <!-- 3-Tab Bottom Navigation Dock -->
+    <!-- 4-Tab Bottom Navigation Dock -->
     <nav class="navigation-dock" role="tablist" aria-label="Feature Views">
       <button class="dock-tab active" id="tabBtnCompass" role="tab" aria-selected="true" aria-controls="tabPanelCompass">
         <span class="dock-tab-icon">🧭</span>
@@ -198,6 +275,10 @@
       <button class="dock-tab" id="tabBtnWaypoints" role="tab" aria-selected="false" aria-controls="tabPanelWaypoints">
         <span class="dock-tab-icon">📍</span>
         <span class="dock-tab-label">Waypoints</span>
+      </button>
+      <button class="dock-tab" id="tabBtnTracker" role="tab" aria-selected="false" aria-controls="tabPanelTracker">
+        <span class="dock-tab-icon">🗺️</span>
+        <span class="dock-tab-label">Trek & GPX</span>
       </button>
     </nav>
 
@@ -299,9 +380,36 @@
         </section>
       </div>
 
-      <!-- ================= PANEL 2: CELESTIAL ASTRONOMY ================= -->
+      <!-- ================= PANEL 2: CELESTIAL ASTRONOMY & SUNDIAL ================= -->
       <div class="tab-panel" id="tabPanelCelestial" role="tabpanel" aria-labelledby="tabBtnCelestial" hidden>
         <section class="celestial-panel">
+          <!-- Sundial & Apparent Solar Time Card -->
+          <div class="celestial-card">
+            <div class="cel-card-header">
+              <div class="cel-card-title">
+                <span class="cel-icon">🕒</span>
+                <strong>Sundial & True Solar Time</strong>
+              </div>
+              <span class="cel-badge" id="sundialStatusBadge">Active Shadow</span>
+            </div>
+            
+            <div class="cel-metric-row">
+              <div class="cel-metric">
+                <span class="cel-label">TRUE SOLAR TIME</span>
+                <span class="cel-val" id="solarTimeVal">--:--:--</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">EQ OF TIME (EoT)</span>
+                <span class="cel-val" id="eotVal">-- m</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">SHADOW LENGTH</span>
+                <span class="cel-val" id="shadowLengthVal">-- px</span>
+              </div>
+            </div>
+            <p class="cel-hint">Virtual gnomon projects an authentic solar shadow on your dial based on your exact longitude and Earth's orbital eccentricity.</p>
+          </div>
+
           <!-- Solar Ephemeris Card -->
           <div class="celestial-card">
             <div class="cel-card-header">
@@ -419,6 +527,50 @@
             <p>Save your parked car, campsite, hotel, or meeting point. The compass needle will guide you directly back offline!</p>
             <button id="btnEmptyMark" class="btn-primary">Mark Current Location</button>
           </div>
+        </section>
+      </div>
+
+      <!-- ================= PANEL 4: GPS TREK & GPX TRACKER ================= -->
+      <div class="tab-panel" id="tabPanelTracker" role="tabpanel" aria-labelledby="tabBtnTracker" hidden>
+        <section class="tracker-panel">
+          <div class="trk-header-card">
+            <div class="trk-status-row">
+              <div class="trk-rec-badge" id="trkRecBadge"><span class="rec-dot"></span> <span id="trkRecText">IDLE</span></div>
+              <span class="trk-point-count" id="trkPointCount">0 breadcrumbs</span>
+            </div>
+            <div class="trk-metrics-grid">
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">DISTANCE</span>
+                <span class="trk-metric-val" id="trkDistanceVal">0.00 km</span>
+              </div>
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">DURATION</span>
+                <span class="trk-metric-val" id="trkDurationVal">00:00:00</span>
+              </div>
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">AVG SPEED</span>
+                <span class="trk-metric-val" id="trkPaceVal">0.0 km/h</span>
+              </div>
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">START ELEV</span>
+                <span class="trk-metric-val" id="trkElevVal">-- m</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="trk-actions-row">
+            <button id="btnToggleTrek" class="btn-trek-primary">▶ Start Recording Trek</button>
+            <button id="btnBacktrack" class="btn-trek-action" disabled title="Reverse heading back to trek starting point">↩ Backtrack</button>
+          </div>
+
+          <div class="trk-io-row">
+            <button id="btnExportGpx" class="btn-trek-secondary" disabled>📥 Export GPX File</button>
+            <label class="btn-trek-secondary btn-file-label" for="gpxFileInput">
+              📤 Import GPX / Trails
+              <input type="file" id="gpxFileInput" accept=".gpx,.xml" style="display:none;">
+            </label>
+          </div>
+          <p class="trk-hint">Records breadcrumb trail completely offline with zero data usage. Backtrack calculates direct line-of-sight reverse heading back to where you started.</p>
         </section>
       </div>
     </div>
@@ -608,6 +760,12 @@
           <ul>
             <li>✨ 100% Offline Capability with Service Worker</li>
             <li>🧭 Real-time iOS & Android Compass Hardware Sensors</li>
+            <li>📷 AR Camera Sighting HUD with Telemetry Stamp</li>
+            <li>🗺️ GPS Breadcrumb Trekking, Backtrack & GPX Import/Export</li>
+            <li>🔴 Tactical Night Vision (Red Mode) & Stargazer Guide</li>
+            <li>🆘 Emergency SOS Morse Code Flasher (Screen + Torch)</li>
+            <li>🧲 Live EMF Magnetic Flux Density & Metal Anomaly Alert</li>
+            <li>🕒 Virtual Sundial Shadow & Local Apparent Solar Time</li>
             <li>☀️ Solar Ephemeris: Real-time Sun Azimuth, Elevation & Golden Hour</li>
             <li>🌙 Lunar Tracking: Live Moon Phase, Illumination % & Moon Azimuth</li>
             <li>📍 Offline Waypoint Navigator ("Find My Car / Camp / Spot")</li>
@@ -622,18 +780,23 @@
         </div>
 
         <div class="app-version">
-          <span>KUBERAN Compass App v4.0.0 • Official Edition</span>
+          <span>KUBERAN Compass App v5.0.0 • Official Edition</span>
           <a id="githubRepoLink" href="https://github.com/Jee1VK/compass-app" target="_blank" rel="noopener noreferrer">View GitHub Repo</a>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="qrcode.min.js?v=4.0.0"></script>
-  <script src="compass-engine.js?v=4.0.0"></script>
-  <script src="celestial-engine.js?v=4.0.0"></script>
-  <script src="waypoint-engine.js?v=4.0.0"></script>
-  <script src="audio-engine.js?v=4.0.0"></script>
-  <script src="app.js?v=4.0.0"></script>
+  <script src="qrcode.min.js?v=5.0.0"></script>
+  <script src="compass-engine.js?v=5.0.0"></script>
+  <script src="celestial-engine.js?v=5.0.0"></script>
+  <script src="waypoint-engine.js?v=5.0.0"></script>
+  <script src="audio-engine.js?v=5.0.0"></script>
+  <script src="tracking-engine.js?v=5.0.0"></script>
+  <script src="sundial-engine.js?v=5.0.0"></script>
+  <script src="nightvision-engine.js?v=5.0.0"></script>
+  <script src="emf-engine.js?v=5.0.0"></script>
+  <script src="camera-hud-engine.js?v=5.0.0"></script>
+  <script src="app.js?v=5.0.0"></script>
 </body>
 </html>
