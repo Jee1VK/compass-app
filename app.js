@@ -867,13 +867,19 @@
         document.body.classList.add('theme-night');
         currentThemeIndex = THEMES.indexOf('theme-night');
         applyThemeMetaColor('theme-night');
-        if (nightPill) nightPill.style.background = 'rgba(239, 68, 68, 0.4)';
+        if (nightPill) {
+          nightPill.style.background = '#22c55e';
+          nightPill.style.boxShadow = '0 0 8px rgba(34, 197, 94, 0.8)';
+        }
         showToast('Tactical Night Vision Activated');
       } else {
         document.body.classList.add('theme-marine');
         currentThemeIndex = THEMES.indexOf('theme-marine');
         applyThemeMetaColor('theme-marine');
-        if (nightPill) nightPill.style.background = '';
+        if (nightPill) {
+          nightPill.style.background = '';
+          nightPill.style.boxShadow = '';
+        }
         showToast('Marine Mode Restored');
       }
       buildDialSvg();
@@ -1567,22 +1573,38 @@
 
   // --- Audio & Waypoint Modal Event Handlers ---
   function setupAudioAndWaypoints() {
+    function updateAudioIcon(muted) {
+      if (!audioPill) return;
+      if (muted) {
+        audioPill.className = 'audio-status-icon mode-muted';
+        audioPill.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>`;
+      } else {
+        audioPill.className = 'audio-status-icon mode-active';
+        audioPill.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>`;
+      }
+    }
+
     if (btnAudioToggle) {
       btnAudioToggle.addEventListener('click', () => {
         if (typeof AudioEngine !== 'undefined') {
           const muted = AudioEngine.toggleMute();
-          if (audioPill) {
-            audioPill.textContent = muted ? '🔇' : '🔊';
-            audioPill.className = muted ? 'mode-pill mode-muted' : 'mode-pill mode-active';
-          }
+          updateAudioIcon(muted);
           showToast(muted ? 'Audio Chimes Muted' : 'Audio Chimes Activated');
         }
       });
 
       if (typeof AudioEngine !== 'undefined' && audioPill) {
         const muted = AudioEngine.isMuted();
-        audioPill.textContent = muted ? '🔇' : '🔊';
-        audioPill.className = muted ? 'mode-pill mode-muted' : 'mode-pill mode-active';
+        updateAudioIcon(muted);
       }
     }
 
