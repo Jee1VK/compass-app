@@ -27,7 +27,7 @@ You can install this directly to your phone's home screen as a standalone full-s
 
 ---
 
-## ✨ Features (v3.9.5)
+## ✨ Features (v3.9.6)
 
 - 🧭 **High-Precision Compass**:
   - Real-time magnetic heading and true north heading with automatic declination calculation.

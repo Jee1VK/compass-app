@@ -237,7 +237,7 @@
       try { localStorage.setItem('kuberan-sensors-enabled', 'true'); } catch(e) {}
       
       sensorAccuracy = info.accuracy != null ? info.accuracy : null;
-      isAbsoluteOrientation = (info.source === 'absolute');
+      isAbsoluteOrientation = (info.source === 'absolute' || info.source === 'ios');
       
       rawMagneticHeading = magHeading;
       
@@ -323,8 +323,55 @@
     }
   });
 
+  // --- Dual-Axis Inclinometer / Bubble Level ---
+  function updateOrientation(p, r) {
+    pitch = p;
+    roll = r;
+
+    // Pitch is front-to-back tilt (-90 to +90)
+    // Roll is left-to-right tilt (-180 to +180)
+    const pitchDeg = Math.round(p);
+    const rollDeg = Math.round(r);
+
+    if (pitchValue) pitchValue.textContent = `${pitchDeg}°`;
+    if (rollValue) rollValue.textContent = `${rollDeg}°`;
+
+    // Bar gauges (normalized from -45° to +45°)
+    const pitchNorm = Math.min(Math.max((p + 45) / 90 * 100, 0), 100);
+    const rollNorm = Math.min(Math.max((r + 45) / 90 * 100, 0), 100);
+    if (pitchGauge) pitchGauge.style.width = `${pitchNorm}%`;
+    if (rollGauge) rollGauge.style.width = `${rollNorm}%`;
+
+    // Center Level Bubble physics (housing radius ~55px, max bubble offset ~38px)
+    const maxOffset = 38;
+    const sensFactor = 2.4; // 15° reaches edge
+    const offsetX = Math.min(Math.max(r * sensFactor, -maxOffset), maxOffset);
+    const offsetY = Math.min(Math.max(p * sensFactor, -maxOffset), maxOffset);
+
+    if (levelBubble) {
+      levelBubble.style.transform = `translate(${offsetX.toFixed(1)}px, ${offsetY.toFixed(1)}px)`;
+    }
+
+    const totalTilt = Math.sqrt(p * p + r * r);
+    if (totalTilt <= 1.5) {
+      if (levelHousing) levelHousing.classList.add('is-level');
+      if (levelStatusCard) levelStatusCard.classList.add('level-locked');
+      if (levelStatusText) levelStatusText.textContent = 'PERFECTLY LEVEL';
+
+      if (hapticsEnabled && 'vibrate' in navigator && (Date.now() - lastVibrateTime > 1000)) {
+        navigator.vibrate(25);
+        lastVibrateTime = Date.now();
+      }
+    } else {
+      if (levelHousing) levelHousing.classList.remove('is-level');
+      if (levelStatusCard) levelStatusCard.classList.remove('level-locked');
+      if (levelStatusText) {
+        levelStatusText.textContent = totalTilt <= 5 ? 'NEARLY LEVEL' : 'TILTED';
+      }
+    }
+  }
+
   function updateHeading(newHeading) {
-     // Used primarily by fallback desktop drag simulation
      rawMagneticHeading = newHeading;
      
      let finalHeading = (newHeading + calibrationOffset) % 360;
@@ -340,6 +387,31 @@
      compassCard.style.transform = `rotate(${-unwrappedHeading}deg)`;
      headingDegrees.textContent = rounded;
      headingCardinal.textContent = getCardinal(finalHeading);
+     if (milsValue) milsValue.textContent = Math.round((finalHeading / 360) * 6400);
+     if (backAzimuthValue) backAzimuthValue.textContent = `${Math.round((finalHeading + 180) % 360)}°`;
+
+     if (targetHeading !== null && targetMarkerRing && targetDeviationBar) {
+       targetMarkerRing.style.transform = `rotate(${targetHeading - finalHeading}deg)`;
+       let diff = (targetHeading - finalHeading + 540) % 360 - 180;
+       const absDiff = Math.abs(Math.round(diff));
+
+       if (absDiff <= 2) {
+         devArrow.textContent = '🎯';
+         devText.textContent = 'ON TARGET';
+         targetDeviationBar.style.borderColor = 'var(--accent-level)';
+         targetDeviationBar.style.background = 'rgba(34, 197, 94, 0.15)';
+       } else if (diff > 0) {
+         devArrow.textContent = '▶';
+         devText.textContent = `${absDiff}° RIGHT`;
+         targetDeviationBar.style.borderColor = 'var(--accent-target)';
+         targetDeviationBar.style.background = 'rgba(245, 158, 11, 0.15)';
+       } else {
+         devArrow.textContent = '◀';
+         devText.textContent = `${absDiff}° LEFT`;
+         targetDeviationBar.style.borderColor = 'var(--accent-target)';
+         targetDeviationBar.style.background = 'rgba(245, 158, 11, 0.15)';
+       }
+     }
   }
 
   function initSensors() {
