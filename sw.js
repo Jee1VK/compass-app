@@ -1,26 +1,32 @@
-const CACHE_NAME = 'kuberan-compass-v3.9.6';
+const CACHE_NAME = 'kuberan-compass-v4.0.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=3.9.6',
+  './style.css?v=4.0.0',
   './style.css',
-  './qrcode.min.js?v=3.9.6',
+  './qrcode.min.js?v=4.0.0',
   './qrcode.min.js',
-  './compass-engine.js?v=3.9.6',
+  './compass-engine.js?v=4.0.0',
   './compass-engine.js',
-  './app.js?v=3.9.6',
+  './celestial-engine.js?v=4.0.0',
+  './celestial-engine.js',
+  './waypoint-engine.js?v=4.0.0',
+  './waypoint-engine.js',
+  './audio-engine.js?v=4.0.0',
+  './audio-engine.js',
+  './app.js?v=4.0.0',
   './app.js',
-  './manifest.webmanifest?v=3.9.6',
+  './manifest.webmanifest?v=4.0.0',
   './manifest.webmanifest',
   './assets/images/kuberan_logo_white_bg.png',
   './assets/images/kuberan_logo_transparent.png',
-  './icon.svg?v=3.9.6',
+  './icon.svg?v=4.0.0',
   './icon.svg',
-  './icon-192.png?v=3.9.6',
+  './icon-192.png?v=4.0.0',
   './icon-192.png',
-  './icon-512.png?v=3.9.6',
+  './icon-512.png?v=4.0.0',
   './icon-512.png',
-  './apple-touch-icon.png?v=3.9.6',
+  './apple-touch-icon.png?v=4.0.0',
   './apple-touch-icon.png'
 ];
 
@@ -50,52 +56,39 @@ self.addEventListener('fetch', (event) => {
                        (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'));
 
   if (isNavigation) {
-    // Network-First for HTML/Navigation: Always fetch newest online, fallback to cache offline
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
           return networkResponse;
         })
-        .catch(async () => {
-          const cached = await caches.match(event.request, { ignoreSearch: true });
-          if (cached) return cached;
-          const indexMatch = await caches.match('./index.html');
-          if (indexMatch) return indexMatch;
-          const rootMatch = await caches.match('./');
-          if (rootMatch) return rootMatch;
-          return new Response('<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>KUBERAN Compass App is Offline</h1></body></html>', {
-            headers: { 'Content-Type': 'text/html' }
-          });
+        .catch(() => {
+          return caches.match('./index.html') || caches.match('./');
         })
     );
-  } else {
-    // Cache-First with Stale-while-revalidate for assets
-    event.respondWith(
-      caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
-        if (cachedResponse) {
-          // Update in background if online
-          fetch(event.request).then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const copy = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-            }
-          }).catch(() => {});
-          return cachedResponse;
-        }
-
-        // Not in cache, fetch from network
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return networkResponse;
-        });
-      })
-    );
+    return;
   }
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((networkResponse) => {
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          return networkResponse;
+        }
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return networkResponse;
+      });
+    })
+  );
 });

@@ -3,27 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>KUBERAN Compass App - High-Precision Mobile Compass</title>
-
-  <!-- PWA Settings -->
-  <link rel="manifest" href="manifest.webmanifest?v=3.9.6">
+  <title>KUBERAN Compass App • Official Edition</title>
+  <meta name="description" content="High-precision mobile compass, dual-axis inclinometer bubble level, GPS telemetry, solar ephemeris, and offline waypoint navigation for iOS & Android.">
   <meta name="theme-color" content="#08111e">
-  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- PWA & Mobile Icons -->
+  <link rel="manifest" href="manifest.webmanifest?v=4.0.0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="KUBERAN Compass">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3.9.6">
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=3.9.6">
-  <link rel="alternate icon" type="image/png" href="icon-192.png?v=3.9.6">
+  <meta name="apple-mobile-web-app-title" content="Kuberan Compass">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
 
-  <link rel="stylesheet" href="style.css?v=3.9.6">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.0.0">
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=4.0.0">
+  <link rel="alternate icon" type="image/png" href="icon-192.png?v=4.0.0">
+
+  <link rel="stylesheet" href="style.css?v=4.0.0">
 </head>
 <body class="theme-marine">
-  <!-- Status / Safe Area Bar -->
-  <main class="app-container">
-    <!-- Top Header -->
+  <div class="stars-bg"></div>
+
+  <!-- Primary Application Wrapper -->
+  <main class="app-container" id="app">
+    <!-- Top Header Bar -->
     <header class="app-header">
-      <div class="brand">
+      <div class="brand-group">
         <a href="https://kuberansilks.com/" target="_blank" rel="noopener noreferrer" class="kuberan-logo-link" title="Visit Kuberan Silks">
           <img src="assets/images/kuberan_logo_white_bg.png" alt="Kuberan Silks - Chickpet, Bengaluru" class="kuberan-header-logo">
         </a>
@@ -34,6 +39,10 @@
       </div>
 
       <div class="header-actions">
+        <!-- Audio / Sound Toggle -->
+        <button id="btnAudioToggle" class="icon-btn" title="Toggle Sound / Audio Chime" aria-label="Toggle Sound">
+          <span id="audioPill" class="mode-pill mode-muted">🔇</span>
+        </button>
         <!-- North Mode Toggle -->
         <button id="btnToggleNorth" class="icon-btn" title="Toggle True/Magnetic North" aria-label="Toggle North Mode">
           <span class="mode-pill" id="northPill">MAG</span>
@@ -80,7 +89,7 @@
 
     <!-- Main Display: Heading & Bearing -->
     <section class="readout-section">
-      <div class="bearing-container">
+      <div class="bearing-container" id="bearingContainer" title="Tap to hear spoken heading" aria-label="Spoken heading announcement">
         <div class="primary-heading">
           <span id="headingDegrees" class="heading-num">0</span>
           <span class="degree-symbol">°</span>
@@ -120,9 +129,14 @@
 
       <!-- Dial Frame -->
       <div class="compass-viewport">
-        <!-- Target Marker Flag (stays on target heading) -->
+        <!-- Target Marker Flag (stays on locked target heading) -->
         <div class="target-marker-ring" id="targetMarkerRing">
           <div class="target-marker-flag" id="targetFlag"></div>
+        </div>
+
+        <!-- Waypoint Beacon Ring (points to active saved waypoint) -->
+        <div class="waypoint-beacon-ring" id="waypointBeaconRing">
+          <div class="waypoint-beacon-arrow" id="waypointBeaconArrow" title="Waypoint Direction"></div>
         </div>
 
         <!-- Rotating Compass Card -->
@@ -131,6 +145,16 @@
           <svg class="dial-svg" viewBox="0 0 500 500" id="dialSvg">
             <!-- Dynamic elements built via app.js for ultra-sharp vector scaling -->
           </svg>
+
+          <!-- Real-Time Celestial Sun Marker -->
+          <div class="celestial-marker sun-marker" id="sunMarker" title="Sun Azimuth">
+            <div class="marker-flag sun-flag">☀️</div>
+          </div>
+
+          <!-- Real-Time Celestial Moon Marker -->
+          <div class="celestial-marker moon-marker" id="moonMarker" title="Moon Azimuth">
+            <div class="marker-flag moon-flag" id="moonFlag">🌙</div>
+          </div>
         </div>
 
         <!-- Center Crosshair & Dual-Axis Bubble Level -->
@@ -148,95 +172,304 @@
       </div>
     </section>
 
-    <!-- Level Inclinometer & Tilt Readout -->
-    <section class="level-details-section">
-      <div class="tilt-card">
-        <span class="tilt-label">PITCH</span>
-        <div class="tilt-gauge-bar"><div class="tilt-gauge-fill" id="pitchGauge"></div></div>
-        <span class="tilt-value" id="pitchValue">0°</span>
-      </div>
-      <div class="tilt-card">
-        <span class="tilt-label">ROLL</span>
-        <div class="tilt-gauge-bar"><div class="tilt-gauge-fill" id="rollGauge"></div></div>
-        <span class="tilt-value" id="rollValue">0°</span>
-      </div>
-      <div class="tilt-card level-status-card" id="levelStatusCard">
-        <span class="tilt-label">SURFACE</span>
-        <span class="level-status-text" id="levelStatusText">LEVELING...</span>
-      </div>
-    </section>
-
-      <!-- GPS Location & Environmental Telemetry -->
-    <section class="telemetry-panel">
-      <div class="telemetry-grid" title="Tap any metric to refresh GPS location" aria-label="GPS Location and Environmental Telemetry - Tap to refresh">
-        <div class="telemetry-item">
-          <div class="telemetry-item-header">
-            <span class="telemetry-icon">📍</span>
-            <span class="telemetry-title">LATITUDE</span>
-          </div>
-          <span class="telemetry-val" id="gpsLat">--° --' --" N</span>
-          <span class="telemetry-sub" id="gpsLatDec">Waiting for GPS...</span>
-        </div>
-
-        <div class="telemetry-item">
-          <div class="telemetry-item-header">
-            <span class="telemetry-icon">🌐</span>
-            <span class="telemetry-title">LONGITUDE</span>
-          </div>
-          <span class="telemetry-val" id="gpsLng">--° --' --" E</span>
-          <span class="telemetry-sub" id="gpsLngDec">Tap to refresh</span>
-        </div>
-
-        <div class="telemetry-item">
-          <div class="telemetry-item-header">
-            <span class="telemetry-icon">⛰️</span>
-            <span class="telemetry-title">ALTITUDE</span>
-          </div>
-          <span class="telemetry-val" id="gpsAlt">-- m</span>
-          <span class="telemetry-sub" id="gpsAccuracy">Accuracy: ±-- m</span>
-        </div>
-
-        <div class="telemetry-item" id="telemetryCalibrationItem" title="Tap to open Sensor Calibration Studio & Adjust Alignment">
-          <div class="telemetry-item-header">
-            <span class="telemetry-icon">🧲</span>
-            <span class="telemetry-title">DECL / ACCURACY</span>
-          </div>
-          <span class="telemetry-val" id="gpsDeclination">0.0°</span>
-          <span class="telemetry-sub" id="sensorStatus"><span id="sensorAccuracyBadge">Acc: ±3° (High)</span></span>
+    <!-- Active Waypoint Floating HUD -->
+    <div id="waypointHud" class="waypoint-hud hidden">
+      <div class="wp-hud-left">
+        <span class="wp-hud-icon" id="wpActiveIcon">🚗</span>
+        <div class="wp-hud-info">
+          <span class="wp-hud-name" id="wpActiveName">Parked Car</span>
+          <span class="wp-hud-dist" id="wpActiveDist">-- m</span>
         </div>
       </div>
+      <div class="wp-hud-turn" id="wpActiveTurn">◀ 0°</div>
+      <button id="btnDismissActiveWp" class="btn-hud-dismiss" title="Stop Navigating" aria-label="Stop Navigating">✕</button>
+    </div>
 
-      <!-- Quick Action Buttons -->
-      <div class="panel-actions">
-        <button id="btnCopyCoords" class="btn-action" aria-label="Copy GPS Coordinates">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-          <span>Copy Coords</span>
-        </button>
-        <button id="btnCalibrate" class="btn-action" aria-label="Calibrate Compass Sensors & Adjust Alignment">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
-            <circle cx="12" cy="12" r="2" fill="currentColor"/>
-          </svg>
-          <span>Calibrate</span>
-        </button>
-        <button id="btnInstallApp" class="btn-action btn-install hidden" title="Install to Home Screen" aria-label="Install App to Home Screen">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          <span>Install App</span>
-        </button>
+    <!-- 3-Tab Bottom Navigation Dock -->
+    <nav class="navigation-dock" role="tablist" aria-label="Feature Views">
+      <button class="dock-tab active" id="tabBtnCompass" role="tab" aria-selected="true" aria-controls="tabPanelCompass">
+        <span class="dock-tab-icon">🧭</span>
+        <span class="dock-tab-label">Compass</span>
+      </button>
+      <button class="dock-tab" id="tabBtnCelestial" role="tab" aria-selected="false" aria-controls="tabPanelCelestial">
+        <span class="dock-tab-icon">☀️</span>
+        <span class="dock-tab-label">Celestial</span>
+      </button>
+      <button class="dock-tab" id="tabBtnWaypoints" role="tab" aria-selected="false" aria-controls="tabPanelWaypoints">
+        <span class="dock-tab-icon">📍</span>
+        <span class="dock-tab-label">Waypoints</span>
+      </button>
+    </nav>
+
+    <!-- Tab Panels Container -->
+    <div class="tab-panels-wrap">
+      <!-- ================= PANEL 1: COMPASS & LEVEL ================= -->
+      <div class="tab-panel active" id="tabPanelCompass" role="tabpanel" aria-labelledby="tabBtnCompass">
+        <!-- Level Inclinometer & Tilt Readout -->
+        <section class="level-details-section">
+          <div class="tilt-card">
+            <span class="tilt-label">PITCH</span>
+            <div class="tilt-gauge-bar"><div class="tilt-gauge-fill" id="pitchGauge"></div></div>
+            <span class="tilt-value" id="pitchValue">0°</span>
+          </div>
+          <div class="tilt-card">
+            <span class="tilt-label">ROLL</span>
+            <div class="tilt-gauge-bar"><div class="tilt-gauge-fill" id="rollGauge"></div></div>
+            <span class="tilt-value" id="rollValue">0°</span>
+          </div>
+          <div class="tilt-card level-status-card" id="levelStatusCard">
+            <span class="tilt-label">SURFACE</span>
+            <span class="level-status-text" id="levelStatusText">LEVELING...</span>
+          </div>
+        </section>
+
+        <!-- GPS Location & Environmental Telemetry -->
+        <section class="telemetry-panel">
+          <div class="telemetry-grid" title="Tap any metric to refresh GPS location" aria-label="GPS Location and Environmental Telemetry - Tap to refresh">
+            <div class="telemetry-item">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">📍</span>
+                <span class="telemetry-title">LATITUDE</span>
+              </div>
+              <span class="telemetry-val" id="gpsLat">--° --' --" N</span>
+              <span class="telemetry-sub" id="gpsLatDec">Waiting for GPS...</span>
+            </div>
+
+            <div class="telemetry-item">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">🌐</span>
+                <span class="telemetry-title">LONGITUDE</span>
+              </div>
+              <span class="telemetry-val" id="gpsLng">--° --' --" E</span>
+              <span class="telemetry-sub" id="gpsLngDec">Tap to refresh</span>
+            </div>
+
+            <div class="telemetry-item">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">⛰️</span>
+                <span class="telemetry-title">ALTITUDE</span>
+              </div>
+              <span class="telemetry-val" id="gpsAlt">-- m</span>
+              <span class="telemetry-sub" id="gpsAccuracy">Accuracy: ±-- m</span>
+            </div>
+
+            <div class="telemetry-item" id="telemetryCalibrationItem" title="Tap to open Sensor Calibration Studio & Adjust Alignment">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">🧲</span>
+                <span class="telemetry-title">DECL / ACCURACY</span>
+              </div>
+              <span class="telemetry-val" id="gpsDeclination">0.0°</span>
+              <span class="telemetry-sub" id="sensorStatus"><span id="sensorAccuracyBadge">Acc: ±3° (High)</span></span>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="panel-actions">
+            <button id="btnCopyCoords" class="btn-action" aria-label="Copy GPS Coordinates">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              <span>Copy Coords</span>
+            </button>
+            <button id="btnMarkSpotAction" class="btn-action" aria-label="Save Current Location as Waypoint">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                <circle cx="12" cy="9" r="2.5"/>
+              </svg>
+              <span>Mark Spot</span>
+            </button>
+            <button id="btnCalibrate" class="btn-action" aria-label="Calibrate Compass Sensors & Adjust Alignment">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+              </svg>
+              <span>Calibrate</span>
+            </button>
+            <button id="btnInstallApp" class="btn-action btn-install hidden" title="Install to Home Screen" aria-label="Install App to Home Screen">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Install App</span>
+            </button>
+          </div>
+        </section>
       </div>
-    </section>
+
+      <!-- ================= PANEL 2: CELESTIAL ASTRONOMY ================= -->
+      <div class="tab-panel" id="tabPanelCelestial" role="tabpanel" aria-labelledby="tabBtnCelestial" hidden>
+        <section class="celestial-panel">
+          <!-- Solar Ephemeris Card -->
+          <div class="celestial-card">
+            <div class="cel-card-header">
+              <div class="cel-card-title">
+                <span class="cel-icon">☀️</span>
+                <strong>Solar Ephemeris & Sun Position</strong>
+              </div>
+              <span class="cel-badge" id="solarDayState">Daylight</span>
+            </div>
+            
+            <div class="cel-metric-row">
+              <div class="cel-metric">
+                <span class="cel-label">SUN AZIMUTH</span>
+                <span class="cel-val" id="sunAzimuthVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">SUN ELEVATION</span>
+                <span class="cel-val" id="sunElevationVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">SOLAR NOON</span>
+                <span class="cel-val" id="solarNoonVal">--:--</span>
+              </div>
+            </div>
+
+            <div class="cel-times-grid">
+              <div class="cel-time-item">
+                <span class="cel-time-icon">🌅</span>
+                <span class="cel-time-label">SUNRISE</span>
+                <span class="cel-time-val" id="sunriseTimeVal">--:--</span>
+              </div>
+              <div class="cel-time-item">
+                <span class="cel-time-icon">🌇</span>
+                <span class="cel-time-label">SUNSET</span>
+                <span class="cel-time-val" id="sunsetTimeVal">--:--</span>
+              </div>
+              <div class="cel-time-item">
+                <span class="cel-time-icon">⏳</span>
+                <span class="cel-time-label">DAY LENGTH</span>
+                <span class="cel-time-val" id="dayLengthVal">--h --m</span>
+              </div>
+              <div class="cel-time-item">
+                <span class="cel-time-icon">✨</span>
+                <span class="cel-time-label">GOLDEN HOUR</span>
+                <span class="cel-time-val" id="goldenHourVal">--:--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lunar Tracking Card -->
+          <div class="celestial-card">
+            <div class="cel-card-header">
+              <div class="cel-card-title">
+                <span class="cel-icon" id="lunarPhaseIcon">🌙</span>
+                <strong id="lunarPhaseTitle">Moon Phase & Tracking</strong>
+              </div>
+              <span class="cel-badge badge-med" id="lunarIllumBadge">--% Illum</span>
+            </div>
+
+            <div class="cel-metric-row">
+              <div class="cel-metric">
+                <span class="cel-label">MOON AZIMUTH</span>
+                <span class="cel-val" id="moonAzimuthVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">MOON ELEVATION</span>
+                <span class="cel-val" id="moonElevationVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">LUNAR AGE</span>
+                <span class="cel-val" id="moonAgeVal">-- d</span>
+              </div>
+            </div>
+            
+            <p class="cel-hint">Sun and Moon markers on the compass dial reflect real-time astronomical bearings calculated locally from your GPS position.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= PANEL 3: OFFLINE WAYPOINTS ================= -->
+      <div class="tab-panel" id="tabPanelWaypoints" role="tabpanel" aria-labelledby="tabBtnWaypoints" hidden>
+        <section class="waypoints-panel">
+          <div class="wp-header-bar">
+            <div>
+              <h3 class="wp-panel-title">Saved Waypoints</h3>
+              <span class="wp-panel-sub">100% Offline Great-Circle Navigation</span>
+            </div>
+            <button id="btnOpenMarkModal" class="btn-primary-sm">+ Mark Spot</button>
+          </div>
+
+          <!-- Active Waypoint Card -->
+          <div class="active-waypoint-card hidden" id="activeWpCard">
+            <div class="active-wp-badge">ACTIVE TARGET</div>
+            <div class="active-wp-body">
+              <span class="active-wp-icon" id="activeCardIcon">🚗</span>
+              <div class="active-wp-details">
+                <h4 id="activeCardName">Parked Car</h4>
+                <div class="active-wp-stats">
+                  <span class="active-wp-dist" id="activeCardDist">-- m away</span>
+                  <span class="active-wp-brg" id="activeCardBearing">Bearing: --°</span>
+                </div>
+              </div>
+              <button id="btnActiveStopNav" class="btn-stop-nav" title="Clear destination">Stop</button>
+            </div>
+          </div>
+
+          <!-- Waypoints List -->
+          <div class="waypoints-list" id="waypointsList">
+            <!-- Dynamic list generated by app.js -->
+          </div>
+
+          <div class="wp-empty-state hidden" id="wpEmptyState">
+            <div class="empty-icon">📍</div>
+            <strong>No Waypoints Saved Yet</strong>
+            <p>Save your parked car, campsite, hotel, or meeting point. The compass needle will guide you directly back offline!</p>
+            <button id="btnEmptyMark" class="btn-primary">Mark Current Location</button>
+          </div>
+        </section>
+      </div>
+    </div>
 
     <!-- Toast Alert Notification -->
     <div id="toast" class="toast hidden">Copied to clipboard</div>
   </main>
+
+  <!-- Waypoint Creation Modal -->
+  <div id="waypointModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="wpModalTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-brand-wrap">
+          <div class="cal-modal-icon">📍</div>
+          <div>
+            <h3 id="wpModalTitle">Mark Current Location</h3>
+            <span class="modal-brand-sub">Save GPS coordinates for offline return</span>
+          </div>
+        </div>
+        <button id="btnCloseWpModal" class="btn-modal-close" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="wp-form-group">
+          <label for="wpNameInput" class="wp-form-label">LOCATION NAME</label>
+          <input type="text" id="wpNameInput" class="wp-input" placeholder="e.g. Parked Car, Campsite, Hotel" maxlength="32">
+        </div>
+
+        <div class="wp-form-group">
+          <label class="wp-form-label">CHOOSE ICON</label>
+          <div class="wp-icon-selector">
+            <button type="button" class="wp-icon-choice active" data-icon="🚗">🚗</button>
+            <button type="button" class="wp-icon-choice" data-icon="⛺">⛺</button>
+            <button type="button" class="wp-icon-choice" data-icon="📍">📍</button>
+            <button type="button" class="wp-icon-choice" data-icon="🏨">🏨</button>
+            <button type="button" class="wp-icon-choice" data-icon="🌲">🌲</button>
+            <button type="button" class="wp-icon-choice" data-icon="☕">☕</button>
+          </div>
+        </div>
+
+        <div class="wp-coords-preview">
+          <span class="wp-coords-label">CURRENT COORDINATES:</span>
+          <span class="wp-coords-val" id="wpModalCoords">Acquiring GPS...</span>
+        </div>
+
+        <div class="modal-footer-actions">
+          <button type="button" class="btn-modal-cancel" id="btnCancelWp">Cancel</button>
+          <button type="button" class="btn-primary" id="btnConfirmSaveWp">Save & Navigate</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Calibration Studio Modal -->
   <div id="calibrationModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calModalTitle">
@@ -375,6 +608,10 @@
           <ul>
             <li>✨ 100% Offline Capability with Service Worker</li>
             <li>🧭 Real-time iOS & Android Compass Hardware Sensors</li>
+            <li>☀️ Solar Ephemeris: Real-time Sun Azimuth, Elevation & Golden Hour</li>
+            <li>🌙 Lunar Tracking: Live Moon Phase, Illumination % & Moon Azimuth</li>
+            <li>📍 Offline Waypoint Navigator ("Find My Car / Camp / Spot")</li>
+            <li>🔊 Synthetic Audio Chimes & Spoken Heading Announcements</li>
             <li>🎯 Advanced Sensor Calibration & Manual Alignment Studio</li>
             <li>⚖️ Dual-axis Pitch & Roll Inclinometer Bubble Level</li>
             <li>🎯 Target Heading / Bearing Deviation Lock</li>
@@ -385,15 +622,18 @@
         </div>
 
         <div class="app-version">
-          <span>KUBERAN Compass App v3.9.6 • Official Edition</span>
+          <span>KUBERAN Compass App v4.0.0 • Official Edition</span>
           <a id="githubRepoLink" href="https://github.com/Jee1VK/compass-app" target="_blank" rel="noopener noreferrer">View GitHub Repo</a>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="qrcode.min.js?v=3.9.6"></script>
-  <script src="compass-engine.js?v=3.9.6"></script>
-  <script src="app.js?v=3.9.6"></script>
+  <script src="qrcode.min.js?v=4.0.0"></script>
+  <script src="compass-engine.js?v=4.0.0"></script>
+  <script src="celestial-engine.js?v=4.0.0"></script>
+  <script src="waypoint-engine.js?v=4.0.0"></script>
+  <script src="audio-engine.js?v=4.0.0"></script>
+  <script src="app.js?v=4.0.0"></script>
 </body>
 </html>

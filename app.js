@@ -29,6 +29,10 @@
   const SMOOTHING_FACTOR = 0.25; // low-pass filter — balanced responsiveness + stability
   let sensorAccuracy = null;
   let isAbsoluteOrientation = false;
+  // Celestial & Waypoint State
+  let currentGpsPos = null;
+  let selectedWpIcon = '🚗';
+
 
   // Themes list (Marine Brass is default)
   const THEMES = ['theme-marine', 'theme-tactical', 'theme-minimal', 'theme-night'];
@@ -86,6 +90,65 @@
   const btnInstallApp = document.getElementById('btnInstallApp');
   const toast = document.getElementById('toast');
   const githubRepoLink = document.getElementById('githubRepoLink');
+  // Audio & Navigation DOM Elements
+  const btnAudioToggle = document.getElementById('btnAudioToggle');
+  const audioPill = document.getElementById('audioPill');
+  const bearingContainer = document.getElementById('bearingContainer');
+
+  // Celestial Markers & Readouts
+  const sunMarker = document.getElementById('sunMarker');
+  const moonMarker = document.getElementById('moonMarker');
+  const moonFlag = document.getElementById('moonFlag');
+  const sunAzimuthVal = document.getElementById('sunAzimuthVal');
+  const sunElevationVal = document.getElementById('sunElevationVal');
+  const solarNoonVal = document.getElementById('solarNoonVal');
+  const sunriseTimeVal = document.getElementById('sunriseTimeVal');
+  const sunsetTimeVal = document.getElementById('sunsetTimeVal');
+  const dayLengthVal = document.getElementById('dayLengthVal');
+  const goldenHourVal = document.getElementById('goldenHourVal');
+  const solarDayState = document.getElementById('solarDayState');
+  const lunarPhaseIcon = document.getElementById('lunarPhaseIcon');
+  const lunarPhaseTitle = document.getElementById('lunarPhaseTitle');
+  const lunarIllumBadge = document.getElementById('lunarIllumBadge');
+  const moonAzimuthVal = document.getElementById('moonAzimuthVal');
+  const moonElevationVal = document.getElementById('moonElevationVal');
+  const moonAgeVal = document.getElementById('moonAgeVal');
+
+  // Waypoint Elements
+  const waypointBeaconRing = document.getElementById('waypointBeaconRing');
+  const waypointBeaconArrow = document.getElementById('waypointBeaconArrow');
+  const waypointHud = document.getElementById('waypointHud');
+  const wpActiveIcon = document.getElementById('wpActiveIcon');
+  const wpActiveName = document.getElementById('wpActiveName');
+  const wpActiveDist = document.getElementById('wpActiveDist');
+  const wpActiveTurn = document.getElementById('wpActiveTurn');
+  const btnDismissActiveWp = document.getElementById('btnDismissActiveWp');
+  const btnMarkSpotAction = document.getElementById('btnMarkSpotAction');
+  const btnOpenMarkModal = document.getElementById('btnOpenMarkModal');
+  const btnEmptyMark = document.getElementById('btnEmptyMark');
+  const waypointModal = document.getElementById('waypointModal');
+  const btnCloseWpModal = document.getElementById('btnCloseWpModal');
+  const btnCancelWp = document.getElementById('btnCancelWp');
+  const btnConfirmSaveWp = document.getElementById('btnConfirmSaveWp');
+  const wpNameInput = document.getElementById('wpNameInput');
+  const wpModalCoords = document.getElementById('wpModalCoords');
+  const activeWpCard = document.getElementById('activeWpCard');
+  const activeCardIcon = document.getElementById('activeCardIcon');
+  const activeCardName = document.getElementById('activeCardName');
+  const activeCardDist = document.getElementById('activeCardDist');
+  const activeCardBearing = document.getElementById('activeCardBearing');
+  const btnActiveStopNav = document.getElementById('btnActiveStopNav');
+  const waypointsList = document.getElementById('waypointsList');
+  const wpEmptyState = document.getElementById('wpEmptyState');
+
+  // 3-Tab Bottom Navigation Dock
+  const tabBtnCompass = document.getElementById('tabBtnCompass');
+  const tabBtnCelestial = document.getElementById('tabBtnCelestial');
+  const tabBtnWaypoints = document.getElementById('tabBtnWaypoints');
+  const tabPanelCompass = document.getElementById('tabPanelCompass');
+  const tabPanelCelestial = document.getElementById('tabPanelCelestial');
+  const tabPanelWaypoints = document.getElementById('tabPanelWaypoints');
+
 
   // --- Initialize Vector Compass Dial SVG ---
   function buildDialSvg() {
@@ -281,6 +344,53 @@
           devText.textContent = `${absDiff}° LEFT`;
           targetDeviationBar.style.borderColor = 'var(--accent-target)';
           targetDeviationBar.style.background = 'rgba(245, 158, 11, 0.15)';
+        }
+      }
+
+      // Waypoint Beacon Rotation & HUD Update
+      if (typeof WaypointEngine !== 'undefined') {
+        const activeWp = WaypointEngine.getActiveWaypoint();
+        if (activeWp && currentGpsPos) {
+          const brg = WaypointEngine.calculateBearing(currentGpsPos.lat, currentGpsPos.lng, activeWp.lat, activeWp.lng);
+          const dist = WaypointEngine.calculateDistance(currentGpsPos.lat, currentGpsPos.lng, activeWp.lat, activeWp.lng);
+          const rel = WaypointEngine.calculateRelativeAngle(finalHeading, brg);
+
+          if (waypointBeaconRing) {
+            waypointBeaconRing.style.display = 'block';
+            waypointBeaconRing.style.transform = `rotate(${brg - finalHeading}deg)`;
+          }
+          if (waypointHud) {
+            waypointHud.classList.remove('hidden');
+            if (wpActiveIcon) wpActiveIcon.textContent = activeWp.icon || '📍';
+            if (wpActiveName) wpActiveName.textContent = activeWp.name;
+            if (wpActiveDist) wpActiveDist.textContent = WaypointEngine.formatDistance(dist);
+            if (wpActiveTurn) {
+              const absRel = Math.abs(Math.round(rel));
+              wpActiveTurn.textContent = (absRel <= 2) ? '🎯 ON TRACK' : (rel > 0 ? `▶ ${absRel}°` : `◀ ${absRel}°`);
+            }
+          }
+        } else {
+          if (waypointBeaconRing) waypointBeaconRing.style.display = 'none';
+          if (waypointHud) waypointHud.classList.add('hidden');
+        }
+      }
+
+      // Synthetic Web Audio Pulse Alignment
+      if (typeof AudioEngine !== 'undefined' && !AudioEngine.isMuted()) {
+        if (targetHeading !== null) {
+          const diff = (targetHeading - finalHeading + 540) % 360 - 180;
+          AudioEngine.playBearingPulse(Math.abs(diff));
+        } else if (typeof WaypointEngine !== 'undefined' && WaypointEngine.getActiveWaypoint() && currentGpsPos) {
+          const activeWp = WaypointEngine.getActiveWaypoint();
+          const brg = WaypointEngine.calculateBearing(currentGpsPos.lat, currentGpsPos.lng, activeWp.lat, activeWp.lng);
+          const rel = WaypointEngine.calculateRelativeAngle(finalHeading, brg);
+          AudioEngine.playBearingPulse(Math.abs(rel));
+        } else {
+          // Subtle chime when crossing True/Magnetic North
+          const northDiff = Math.abs(((finalHeading + 180) % 360) - 180);
+          if (northDiff <= 8) {
+            AudioEngine.playBearingPulse(northDiff);
+          }
         }
       }
 
@@ -510,6 +620,10 @@
 
     // Approximate Magnetic Declination (Simple model)
     calculateDeclination(lat, lng);
+
+    currentGpsPos = { lat: lat, lng: lng, alt: alt };
+    updateCelestialView();
+    updateWaypointHud();
   }
 
   function initGPS() {
@@ -920,12 +1034,300 @@
     }
   }
 
+
+  // --- Celestial Astronomy Engine Wiring ---
+  function updateCelestialView() {
+    if (typeof CelestialEngine === 'undefined') return;
+    const now = new Date();
+    const lat = currentGpsPos ? currentGpsPos.lat : 12.9716; // default Bangalore
+    const lng = currentGpsPos ? currentGpsPos.lng : 77.5946;
+
+    // Solar Position & Dial Marker
+    const solarPos = CelestialEngine.getSolarPosition(lat, lng, now);
+    if (sunMarker) {
+      sunMarker.style.transform = `rotate(${solarPos.azimuth}deg)`;
+    }
+    if (sunAzimuthVal) sunAzimuthVal.textContent = `${solarPos.azimuth.toFixed(1)}°`;
+    if (sunElevationVal) sunElevationVal.textContent = `${solarPos.elevation >= 0 ? '+' : ''}${solarPos.elevation.toFixed(1)}°`;
+    if (solarDayState) {
+      if (solarPos.isGoldenHour) {
+        solarDayState.textContent = 'Golden Hour';
+        solarDayState.style.borderColor = 'var(--accent-target)';
+        solarDayState.style.color = 'var(--accent-target)';
+      } else if (solarPos.isDaylight) {
+        solarDayState.textContent = 'Daylight';
+        solarDayState.style.borderColor = 'var(--accent-level)';
+        solarDayState.style.color = 'var(--accent-level)';
+      } else {
+        solarDayState.textContent = 'Night';
+        solarDayState.style.borderColor = 'var(--border-color)';
+        solarDayState.style.color = 'var(--text-muted)';
+      }
+    }
+
+    // Solar Times (Sunrise, Noon, Sunset, Golden Hour)
+    const solarTimes = CelestialEngine.getSolarTimes(lat, lng, now);
+    function formatTime(d) {
+      if (!d) return '--:--';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    if (solarNoonVal) solarNoonVal.textContent = formatTime(solarTimes.solarNoon);
+    if (sunriseTimeVal) sunriseTimeVal.textContent = formatTime(solarTimes.sunrise);
+    if (sunsetTimeVal) sunsetTimeVal.textContent = formatTime(solarTimes.sunset);
+    if (dayLengthVal) {
+      const h = Math.floor(solarTimes.dayLengthMinutes / 60);
+      const m = solarTimes.dayLengthMinutes % 60;
+      dayLengthVal.textContent = `${h}h ${m}m`;
+    }
+    if (goldenHourVal && solarTimes.goldenHourEvening) {
+      goldenHourVal.textContent = formatTime(solarTimes.goldenHourEvening.start);
+    }
+
+    // Lunar Position & Dial Marker
+    const lunarPos = CelestialEngine.getLunarPosition(lat, lng, now);
+    if (moonMarker) {
+      moonMarker.style.transform = `rotate(${lunarPos.azimuth}deg)`;
+    }
+    if (moonFlag) moonFlag.textContent = lunarPos.phaseIcon;
+    if (lunarPhaseIcon) lunarPhaseIcon.textContent = lunarPos.phaseIcon;
+    if (lunarPhaseTitle) lunarPhaseTitle.textContent = lunarPos.phaseName;
+    if (lunarIllumBadge) lunarIllumBadge.textContent = `${lunarPos.illuminationPercent}% Illum`;
+    if (moonAzimuthVal) moonAzimuthVal.textContent = `${lunarPos.azimuth.toFixed(1)}°`;
+    if (moonElevationVal) moonElevationVal.textContent = `${lunarPos.elevation >= 0 ? '+' : ''}${lunarPos.elevation.toFixed(1)}°`;
+    if (moonAgeVal) moonAgeVal.textContent = `${lunarPos.ageDays} d`;
+  }
+
+  // Periodic 3-second update for celestial bodies
+  setInterval(updateCelestialView, 3000);
+
+  // --- Offline Waypoint Manager Wiring ---
+  function updateWaypointHud() {
+    if (typeof WaypointEngine === 'undefined') return;
+    const activeWp = WaypointEngine.getActiveWaypoint();
+    if (!activeWp || !currentGpsPos) {
+      if (waypointHud) waypointHud.classList.add('hidden');
+      if (waypointBeaconRing) waypointBeaconRing.style.display = 'none';
+      if (activeWpCard) activeWpCard.classList.add('hidden');
+      return;
+    }
+
+    const dist = WaypointEngine.calculateDistance(currentGpsPos.lat, currentGpsPos.lng, activeWp.lat, activeWp.lng);
+    const brg = WaypointEngine.calculateBearing(currentGpsPos.lat, currentGpsPos.lng, activeWp.lat, activeWp.lng);
+
+    if (activeWpCard) {
+      activeWpCard.classList.remove('hidden');
+      if (activeCardIcon) activeCardIcon.textContent = activeWp.icon || '📍';
+      if (activeCardName) activeCardName.textContent = activeWp.name;
+      if (activeCardDist) activeCardDist.textContent = `${WaypointEngine.formatDistance(dist)} away`;
+      if (activeCardBearing) activeCardBearing.textContent = `Bearing: ${Math.round(brg)}°`;
+    }
+  }
+
+  function renderWaypointsList() {
+    if (typeof WaypointEngine === 'undefined' || !waypointsList) return;
+    const list = WaypointEngine.getWaypoints();
+    const activeId = WaypointEngine.getActiveWaypointId();
+
+    updateWaypointHud();
+
+    if (list.length === 0) {
+      waypointsList.innerHTML = '';
+      if (wpEmptyState) wpEmptyState.classList.remove('hidden');
+      return;
+    }
+
+    if (wpEmptyState) wpEmptyState.classList.add('hidden');
+    let html = '';
+    list.forEach(w => {
+      const isActive = w.id === activeId;
+      let distText = '';
+      if (currentGpsPos) {
+        const d = WaypointEngine.calculateDistance(currentGpsPos.lat, currentGpsPos.lng, w.lat, w.lng);
+        distText = ` • ${WaypointEngine.formatDistance(d)}`;
+      }
+      html += `
+        <div class="wp-list-item">
+          <div class="wp-item-left">
+            <span class="wp-item-icon">${w.icon || '📍'}</span>
+            <div class="wp-item-info">
+              <span class="wp-item-name">${w.name}</span>
+              <span class="wp-item-meta">${new Date(w.timestamp).toLocaleDateString()}${distText}</span>
+            </div>
+          </div>
+          <div class="wp-item-actions">
+            <button class="btn-wp-nav" data-id="${w.id}">${isActive ? 'Active' : 'Navigate'}</button>
+            <button class="btn-wp-del" data-id="${w.id}" title="Delete Waypoint">✕</button>
+          </div>
+        </div>
+      `;
+    });
+    waypointsList.innerHTML = html;
+
+    // Attach list button handlers
+    waypointsList.querySelectorAll('.btn-wp-nav').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.getAttribute('data-id');
+        WaypointEngine.setActiveWaypoint(id);
+        renderWaypointsList();
+        showToast('Navigating to Waypoint');
+      });
+    });
+
+    waypointsList.querySelectorAll('.btn-wp-del').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.getAttribute('data-id');
+        WaypointEngine.deleteWaypoint(id);
+        renderWaypointsList();
+        showToast('Waypoint Deleted');
+      });
+    });
+  }
+
+  function openMarkModal() {
+    if (!currentGpsPos) {
+      showToast('Acquiring GPS coordinates...');
+      return;
+    }
+    if (wpModalCoords) {
+      wpModalCoords.textContent = `${currentGpsPos.lat.toFixed(5)}°, ${currentGpsPos.lng.toFixed(5)}° (${gpsAlt.textContent})`;
+    }
+    if (wpNameInput) {
+      wpNameInput.value = '';
+      wpNameInput.placeholder = 'e.g. Parked Car, Campsite';
+    }
+    if (waypointModal) {
+      waypointModal.classList.remove('hidden');
+    }
+  }
+
+  // --- 3-Tab Bottom Navigation Dock Wiring ---
+  function setupTabs() {
+    const tabs = [
+      { btn: tabBtnCompass, panel: tabPanelCompass },
+      { btn: tabBtnCelestial, panel: tabPanelCelestial },
+      { btn: tabBtnWaypoints, panel: tabPanelWaypoints }
+    ];
+
+    tabs.forEach(t => {
+      if (!t.btn || !t.panel) return;
+      t.btn.addEventListener('click', () => {
+        tabs.forEach(other => {
+          if (other.btn) {
+            other.btn.classList.remove('active');
+            other.btn.setAttribute('aria-selected', 'false');
+          }
+          if (other.panel) {
+            other.panel.classList.remove('active');
+            other.panel.setAttribute('hidden', 'true');
+          }
+        });
+
+        t.btn.classList.add('active');
+        t.btn.setAttribute('aria-selected', 'true');
+        t.panel.classList.add('active');
+        t.panel.removeAttribute('hidden');
+
+        if (t.panel === tabPanelCelestial) {
+          updateCelestialView();
+        } else if (t.panel === tabPanelWaypoints) {
+          renderWaypointsList();
+        }
+      });
+    });
+  }
+
+  // --- Audio & Waypoint Modal Event Handlers ---
+  function setupAudioAndWaypoints() {
+    // Audio Toggle
+    if (btnAudioToggle) {
+      btnAudioToggle.addEventListener('click', () => {
+        if (typeof AudioEngine !== 'undefined') {
+          const muted = AudioEngine.toggleMute();
+          if (audioPill) {
+            audioPill.textContent = muted ? '🔇' : '🔊';
+            audioPill.className = muted ? 'mode-pill mode-muted' : 'mode-pill mode-active';
+          }
+          showToast(muted ? 'Audio Chimes Muted' : 'Audio Chimes Activated');
+        }
+      });
+
+      // Initialize audio pill display from saved state
+      if (typeof AudioEngine !== 'undefined' && audioPill) {
+        const muted = AudioEngine.isMuted();
+        audioPill.textContent = muted ? '🔇' : '🔊';
+        audioPill.className = muted ? 'mode-pill mode-muted' : 'mode-pill mode-active';
+      }
+    }
+
+    // Spoken Heading Announcement on readout tap
+    if (bearingContainer) {
+      bearingContainer.addEventListener('click', () => {
+        if (typeof AudioEngine !== 'undefined') {
+          AudioEngine.speakHeading(currentHeading, headingCardinal.textContent);
+        }
+      });
+    }
+
+    // Mark Waypoint modal triggers
+    if (btnMarkSpotAction) btnMarkSpotAction.addEventListener('click', openMarkModal);
+    if (btnOpenMarkModal) btnOpenMarkModal.addEventListener('click', openMarkModal);
+    if (btnEmptyMark) btnEmptyMark.addEventListener('click', openMarkModal);
+
+    if (btnCloseWpModal) btnCloseWpModal.addEventListener('click', () => waypointModal.classList.add('hidden'));
+    if (btnCancelWp) btnCancelWp.addEventListener('click', () => waypointModal.classList.add('hidden'));
+
+    // Icon Selector
+    document.querySelectorAll('.wp-icon-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.wp-icon-choice').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedWpIcon = btn.getAttribute('data-icon') || '📍';
+      });
+    });
+
+    // Confirm Save Waypoint
+    if (btnConfirmSaveWp) {
+      btnConfirmSaveWp.addEventListener('click', () => {
+        if (!currentGpsPos) {
+          showToast('Cannot save without GPS coordinates');
+          return;
+        }
+        const name = (wpNameInput && wpNameInput.value.trim()) || 'Marked Location';
+        WaypointEngine.addWaypoint(name, currentGpsPos.lat, currentGpsPos.lng, currentGpsPos.alt, selectedWpIcon);
+        waypointModal.classList.add('hidden');
+        renderWaypointsList();
+        showToast(`Saved "${name}"`);
+      });
+    }
+
+    // Dismiss active waypoint HUD
+    if (btnDismissActiveWp) {
+      btnDismissActiveWp.addEventListener('click', () => {
+        WaypointEngine.clearActiveWaypoint();
+        renderWaypointsList();
+        showToast('Stopped Navigation');
+      });
+    }
+
+    if (btnActiveStopNav) {
+      btnActiveStopNav.addEventListener('click', () => {
+        WaypointEngine.clearActiveWaypoint();
+        renderWaypointsList();
+        showToast('Stopped Navigation');
+      });
+    }
+  }
+
   // --- Initialize App ---
   function init() {
     buildDialSvg();
     initSensors();
     initGPS();
     updateCalibrationUI();
+    setupTabs();
+    setupAudioAndWaypoints();
+    updateCelestialView();
+    renderWaypointsList();
 
     // Default heading display
     updateHeading(0);
