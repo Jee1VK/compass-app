@@ -6,6 +6,8 @@ const ASSETS_TO_CACHE = [
   './style.css',
   './qrcode.min.js?v=5.1.0',
   './qrcode.min.js',
+  './compass-bundle.min.js?v=5.1.0',
+  './compass-bundle.min.js',
   './compass-engine.js?v=5.1.0',
   './compass-engine.js',
   './celestial-engine.js?v=5.1.0',

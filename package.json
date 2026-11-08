@@ -1,0 +1,28 @@
+{
+  "name": "compass-app",
+  "version": "1.0.0",
+  "description": "A sleek, downloadable **Wilderness, Celestial & Sighting Navigation Progressive Web App (PWA)** built for iOS (Safari) and Android (Chrome / Samsung Internet), with 100% offline support, zero ads, zero tracking, and instant load time. Official edition presented by [Kuberan Silks](https://kuberansilks.com/).",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "node build-obfuscate.js",
+    "test": "node run-tests.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jee1VK/compass-app.git"
+  },
+  "keywords": [],
+  "author": "Kuberan Silks",
+  "license": "PROPRIETARY",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Jee1VK/compass-app/issues"
+  },
+  "homepage": "https://github.com/Jee1VK/compass-app#readme",
+  "devDependencies": {
+    "javascript-obfuscator": "^5.10.0"
+  }
+}

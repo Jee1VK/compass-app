@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Local un-obfuscated source code (Kept private on local NAS, never pushed to public GitHub)
+src/
+
+# Temporary / build files
+*.log
