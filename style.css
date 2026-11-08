@@ -126,6 +126,15 @@ body.theme-night {
   -webkit-user-select: none;
 }
 
+/* UI & Asset-Level Deterrents: Protect brand assets, SVGs, and graphics */
+img, svg, canvas, .dial-section, .kuberan-header-logo, .kuberan-modal-logo {
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  pointer-events: auto;
+}
+
 /* WCAG 2.2 AA Keyboard Accessible Focus Ring */
 button:focus-visible,
 a:focus-visible,
