@@ -46,11 +46,12 @@ const securityPreamble = `
 
   // 4. Timing-based DevTools Detection & Anti-Debugger Trap
   function antiDebug() {
+    if (document.hidden) return;
     var t0 = performance.now();
     (function() {
       Function('debugger')();
     })();
-    if (performance.now() - t0 > 100) {
+    if (!document.hidden && (performance.now() - t0 > 250)) {
       try {
         document.body.innerHTML = '<div style="background:#070b14;color:#ef4444;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:700;font-size:1.1rem;text-align:center;padding:24px;">Developer Tools detected. Inspection is restricted on proprietary builds. Redirecting...</div>';
         setTimeout(function() { window.location.href = 'https://kuberansilks.com/'; }, 1500);

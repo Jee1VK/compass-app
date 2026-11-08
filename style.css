@@ -3,6 +3,13 @@
    ========================================================================== */
 
 :root {
+  /* Kuberan Silks Heritage Brand Tokens (Google Stitch Standard) */
+  --color-brand-primary: #6B1D2F;
+  --color-brand-accent: #C5A059;
+  --color-brand-secondary: #1B4D3E;
+  --color-canvas-base: #FAFAF7;
+  --color-text-primary: #1C1917;
+
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "SF Mono", "Roboto Mono", Menlo, Consolas, Monaco, monospace;
 
