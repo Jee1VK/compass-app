@@ -1,0 +1,38 @@
+{
+  "id": "com.kuberansilks.compass",
+  "name": "KUBERAN Compass • Outdoor Navigation",
+  "short_name": "Kuberan Compass",
+  "description": "High-precision wilderness compass, AR sighting HUD, dual-axis inclinometer, GPS trail tracker, celestial ephemeris, and offline waypoint navigation.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08111e",
+  "theme_color": "#08111e",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["navigation", "sports", "utilities"]
+}

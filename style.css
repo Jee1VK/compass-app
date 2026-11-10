@@ -2611,3 +2611,205 @@ body {
 .tab-panels-wrap {
   padding-bottom: calc(var(--safe-bottom) + 32px);
 }
+
+/* ----------------- Store Differentiation & Review Safety Standards ----------------- */
+/* Photosensitive Epilepsy & SOS Strobe Warning Dialog */
+.sos-warning-window {
+  max-width: 440px !important;
+  border: 1px solid rgba(239, 68, 68, 0.45) !important;
+  box-shadow: 0 16px 40px rgba(239, 68, 68, 0.25) !important;
+}
+
+.sos-warning-header-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.sos-warning-title {
+  color: #f87171 !important;
+  font-size: 1.05rem !important;
+  font-weight: 800;
+  margin: 0;
+}
+
+.sos-warning-callout {
+  background: rgba(239, 68, 68, 0.12);
+  border-left: 4px solid #ef4444;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #fecaca;
+}
+
+.sos-warning-callout p {
+  margin: 0 0 6px 0;
+}
+
+.sos-warning-callout p:last-child {
+  margin-bottom: 0;
+}
+
+.sos-safety-policy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.safety-rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--text-color);
+  line-height: 1.4;
+}
+
+.safety-badge {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.sos-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-confirm-sos {
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 800;
+  font-size: 0.92rem;
+  cursor: pointer;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.btn-confirm-sos:active {
+  transform: scale(0.97);
+  background: #b91c1c;
+}
+
+.btn-cancel-sos {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-cancel-sos:active {
+  background: var(--bg-hover);
+}
+
+.sos-timer-indicator {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: #fca5a5;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  letter-spacing: 0.5px;
+}
+
+/* Statutory Outdoor Navigation Disclaimer */
+.statutory-disclaimer-card {
+  background: rgba(197, 160, 89, 0.08);
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.disclaimer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--stitch-gold, #C5A059);
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.disclaimer-icon {
+  font-size: 1rem;
+}
+
+.disclaimer-text {
+  font-size: 0.78rem;
+  color: var(--text-color);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Magnetometer Fallback Banner */
+.magnetometer-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 16px) + 8px);
+  left: 16px;
+  right: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 1050;
+  background: rgba(30, 41, 59, 0.96);
+  border: 1px solid rgba(197, 160, 89, 0.5);
+  border-radius: 12px;
+  padding: 10px 14px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  animation: slideDown 0.3s ease;
+}
+
+.magnetometer-banner.hidden {
+  display: none !important;
+}
+
+.magnetometer-banner-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.magnetometer-banner-icon {
+  font-size: 1.4rem;
+}
+
+.magnetometer-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.magnetometer-banner-text strong {
+  font-size: 0.82rem;
+  color: #f8fafc;
+}
+
+.magnetometer-banner-text span {
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.btn-banner-dismiss {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}

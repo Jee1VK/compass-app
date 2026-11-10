@@ -1,8 +1,8 @@
 {
-  "id": "kuberan-compass-app",
-  "name": "KUBERAN Compass App",
-  "short_name": "KUBERAN Compass",
-  "description": "High-precision mobile compass, dual-axis inclinometer bubble level, and GPS telemetry for iOS & Android.",
+  "id": "com.kuberansilks.compass",
+  "name": "KUBERAN Compass • Outdoor Navigation",
+  "short_name": "Kuberan Compass",
+  "description": "High-precision wilderness compass, AR sighting HUD, dual-axis inclinometer, GPS trail tracker, celestial ephemeris, and offline waypoint navigation.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "./index.html",
@@ -34,5 +34,5 @@
       "type": "image/svg+xml"
     }
   ],
-  "categories": ["utilities", "navigation"]
+  "categories": ["navigation", "sports", "utilities"]
 }

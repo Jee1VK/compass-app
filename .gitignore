@@ -5,5 +5,15 @@ package-lock.json
 # Local un-obfuscated source code (Kept private on local NAS, never pushed to public GitHub)
 src/
 
+# Native build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+ios/App/build/
+ios/App/Pods/
+ios/App/DerivedData/
+.DS_Store
+
 # Temporary / build files
 *.log

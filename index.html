@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>KUBERAN Compass App • Official Edition</title>
-  <meta name="description" content="High-precision mobile compass, dual-axis inclinometer bubble level, GPS telemetry, solar ephemeris, AR camera sighting, and offline waypoint navigation for iOS & Android.">
+  <title>KUBERAN Compass • Outdoor &amp; Celestial Navigation</title>
+  <meta name="description" content="Professional wilderness navigation suite featuring real-time magnetic &amp; true heading, AR sighting HUD, dual-axis inclinometer, GPS trail tracker, celestial ephemeris, emergency SOS signaling, and offline waypoint navigation.">
   <meta name="theme-color" content="#08111e">
 
   <!-- PWA & Mobile Icons -->
@@ -49,13 +49,60 @@
     </div>
   </div>
 
+  <!-- Photosensitive Epilepsy / SOS Strobe Warning Dialog -->
+  <div id="sosWarningModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="sosWarningTitle">
+    <div class="modal-window sos-warning-window">
+      <div class="modal-header">
+        <div class="sos-warning-header-icon">⚠️</div>
+        <div>
+          <h3 id="sosWarningTitle" class="sos-warning-title">Photosensitive Epilepsy Warning</h3>
+          <span class="modal-brand-sub">Emergency Optical Signaling Safety Notice</span>
+        </div>
+        <button id="btnCloseSosWarning" class="btn-modal-close" aria-label="Close safety warning">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="sos-warning-callout" role="alert">
+          <p><strong>CAUTION:</strong> Activating Emergency SOS will trigger rapid, high-intensity optical flashes across your screen and rear camera LED torch in international Morse Code (<strong>· · · — — — · · ·</strong>).</p>
+          <p>Rapid flashing lights can trigger epileptic seizures, migraines, or severe discomfort in photosensitive individuals.</p>
+        </div>
+        <div class="sos-safety-policy">
+          <div class="safety-rule-item">
+            <span class="safety-badge">⏱️</span>
+            <span><strong>Automatic Safety Shutoff:</strong> The strobe will automatically terminate after <strong>3 minutes (180 seconds)</strong> to prevent optical exhaustion and preserve battery life.</span>
+          </div>
+          <div class="safety-rule-item">
+            <span class="safety-badge">🛑</span>
+            <span><strong>Instant Stop:</strong> Tap anywhere or click the prominent STOP button at any time to immediately extinguish all flashes.</span>
+          </div>
+        </div>
+        <div class="sos-action-buttons">
+          <button id="btnConfirmSos" class="btn-confirm-sos">ACTIVATE SOS STROBE</button>
+          <button id="btnCancelSos" class="btn-cancel-sos">CANCEL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Fullscreen SOS Morse Strobe Overlay -->
-  <div id="sosOverlay" class="sos-overlay hidden">
+  <div id="sosOverlay" class="sos-overlay hidden" role="alert" aria-live="assertive">
     <div class="sos-content">
       <div class="sos-banner">EMERGENCY SOS ACTIVE</div>
       <div class="sos-morse-text">· · · — — — · · ·</div>
       <div class="sos-desc">Flashing screen and camera torch in international Morse Code</div>
+      <div class="sos-timer-indicator">Auto-shutoff in <span id="sosCountdown">180</span>s</div>
       <button id="btnStopSos" class="btn-sos-stop">STOP SOS STROBE</button>
+    </div>
+  </div>
+
+  <!-- Hardware Magnetometer Fallback Banner -->
+  <div id="magnetometerWarningBanner" class="magnetometer-banner hidden" role="alert">
+    <div class="magnetometer-banner-body">
+      <span class="magnetometer-banner-icon">🧭</span>
+      <div class="magnetometer-banner-text">
+        <strong>Hardware Compass Sensor Unavailable</strong>
+        <span>This device lacks a physical geomagnetic magnetometer. You can drag the compass dial manually or use GPS Course-Over-Ground when moving outdoors.</span>
+      </div>
+      <button id="btnDismissMagnetometer" class="btn-banner-dismiss" aria-label="Dismiss sensor notice">✕</button>
     </div>
   </div>
 
@@ -761,13 +808,22 @@
             <img src="assets/images/kuberan_logo_white_bg.png" alt="Kuberan Silks - Chickpet, Bengaluru" class="kuberan-modal-logo">
           </a>
           <div>
-            <h3 id="modalTitle">KUBERAN Compass App</h3>
-            <span class="modal-brand-sub">Official Kuberan Silks Edition</span>
+            <h3 id="modalTitle">KUBERAN Compass</h3>
+            <span class="modal-brand-sub">Wilderness &amp; Celestial Navigation</span>
           </div>
         </div>
         <button id="btnCloseModal" class="btn-modal-close" aria-label="Close modal">✕</button>
       </div>
       <div class="modal-body">
+        <!-- Statutory Outdoor Navigation Disclaimer -->
+        <div class="statutory-disclaimer-card" role="note">
+          <div class="disclaimer-header">
+            <span class="disclaimer-icon">⚠️</span>
+            <strong>STATUTORY OUTDOOR NAVIGATION NOTICE</strong>
+          </div>
+          <p class="disclaimer-text">Electronic compasses and smartphone GPS are auxiliary tools. Never rely solely on a smartphone for life-critical wilderness survival. Always carry a physical lensatic compass and topographic map.</p>
+        </div>
+
         <div class="qr-container">
           <div id="qrcodeBox" class="qrcode-box"></div>
           <span class="qr-caption">Scan with phone camera to open</span>

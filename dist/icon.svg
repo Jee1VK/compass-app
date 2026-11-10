@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#141923" />
+      <stop offset="70%" stop-color="#0b0e14" />
+      <stop offset="100%" stop-color="#05070a" />
+    </radialGradient>
+    <linearGradient id="metalRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#384358" />
+      <stop offset="25%" stop-color="#1f2533" />
+      <stop offset="50%" stop-color="#4a5773" />
+      <stop offset="75%" stop-color="#181e2b" />
+      <stop offset="100%" stop-color="#2d374a" />
+    </linearGradient>
+    <linearGradient id="needleNorth" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff3b30" />
+      <stop offset="50%" stop-color="#ff6961" />
+      <stop offset="100%" stop-color="#d32f2f" />
+    </linearGradient>
+    <linearGradient id="needleSouth" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8e99a8" />
+      <stop offset="50%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Outer Housing -->
+  <rect width="512" height="512" rx="112" fill="#07090e" />
+  <circle cx="256" cy="256" r="236" fill="url(#metalRing)" stroke="#4fc3f7" stroke-opacity="0.25" stroke-width="2" />
+  <circle cx="256" cy="256" r="218" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="4" />
+
+  <!-- Outer Ring Degree Ticks -->
+  <g stroke="#475569" stroke-width="2" opacity="0.6">
+    <line x1="256" y1="46" x2="256" y2="60" />
+    <line x1="361" y1="74" x2="354" y2="86" />
+    <line x1="438" y1="151" x2="426" y2="158" />
+    <line x1="466" y1="256" x2="452" y2="256" />
+    <line x1="438" y1="361" x2="426" y2="354" />
+    <line x1="361" y1="438" x2="354" y2="426" />
+    <line x1="256" y1="466" x2="256" y2="452" />
+    <line x1="151" y1="438" x2="158" y2="426" />
+    <line x1="74" y1="361" x2="86" y2="354" />
+    <line x1="46" y1="256" x2="60" y2="256" />
+    <line x1="74" y1="151" x2="86" y2="158" />
+    <line x1="151" y1="74" x2="158" y2="86" />
+  </g>
+
+  <!-- Crosshairs -->
+  <line x1="256" y1="70" x2="256" y2="442" stroke="#334155" stroke-width="1.5" stroke-dasharray="6,6" />
+  <line x1="70" y1="256" x2="442" y2="256" stroke="#334155" stroke-width="1.5" stroke-dasharray="6,6" />
+
+  <!-- Compass Needle North (Red) -->
+  <polygon points="256,66 280,256 256,238 232,256" fill="url(#needleNorth)" filter="url(#glow)" />
+  <polygon points="256,66 256,238 232,256" fill="#ff7961" opacity="0.4" />
+
+  <!-- Compass Needle South (Silver/White) -->
+  <polygon points="256,446 280,256 256,274 232,256" fill="url(#needleSouth)" />
+  <polygon points="256,446 256,274 232,256" fill="#ffffff" opacity="0.35" />
+
+  <!-- Pivot Cap -->
+  <circle cx="256" cy="256" r="26" fill="#0f172a" stroke="#00e5ff" stroke-width="3" />
+  <circle cx="256" cy="256" r="14" fill="#38bdf8" />
+  <circle cx="252" cy="252" r="4" fill="#ffffff" opacity="0.8" />
+
+  <!-- Cardinal Letters -->
+  <text x="256" y="96" fill="#ff453a" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="28" text-anchor="middle">N</text>
+  <text x="430" y="265" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="24" text-anchor="middle">E</text>
+  <text x="256" y="434" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="24" text-anchor="middle">S</text>
+  <text x="82" y="265" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="24" text-anchor="middle">W</text>
+</svg>

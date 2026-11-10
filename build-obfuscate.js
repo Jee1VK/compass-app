@@ -20,10 +20,12 @@ const securityPreamble = `
     }
   } catch(e) {}
 
-  // 2. Domain Whitelist Verification
+  // 2. Domain Whitelist Verification (Browser & Capacitor / Native Webview)
   var allowed = ['jee1vk.github.io', 'kuberansilks.com', 'localhost', '127.0.0.1'];
+  var proto = window.location.protocol;
   var host = window.location.hostname;
-  if (!allowed.some(function(d) { return host === d || host.endsWith('.' + d); })) {
+  var isNativeApp = proto === 'capacitor:' || proto === 'ionic:' || proto === 'file:' || host === 'localhost' || host === '127.0.0.1';
+  if (!isNativeApp && !allowed.some(function(d) { return host === d || host.endsWith('.' + d); })) {
     try {
       document.documentElement.innerHTML = '<div style="background:#070b14;color:#ef4444;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:700;font-size:1.1rem;text-align:center;padding:20px;">Unauthorized domain deployment. Redirecting to official Kuberan Silks source...</div>';
       setTimeout(function() { window.location.href = 'https://kuberansilks.com/'; }, 1000);
@@ -170,4 +172,50 @@ engineFiles.forEach(file => {
   console.log(`✓ Obfuscated ${file} (${(obf.length / 1024).toFixed(1)} KB)`);
 });
 
-console.log('\n✓ ALL JAVASCRIPT ENGINES OBFUSCATED WITH ANTI-DEBUGGING AND UI DETERRENTS!');
+// 5. Synchronize clean production bundle into dist/ for Capacitor & Store packaging
+console.log('\nSynchronizing clean production assets to dist/ for Capacitor & Mobile Store packaging...');
+const distDir = path.join(rootDir, 'dist');
+if (!fs.existsSync(distDir)) {
+  fs.mkdirSync(distDir, { recursive: true });
+}
+
+const distFiles = [
+  'index.html',
+  'style.css',
+  'compass-bundle.min.js',
+  'qrcode.min.js',
+  'manifest.webmanifest',
+  'sw.js',
+  'apple-touch-icon.png',
+  'icon-192.png',
+  'icon-512.png',
+  'icon.svg'
+];
+
+distFiles.forEach(f => {
+  const src = path.join(rootDir, f);
+  const dest = path.join(distDir, f);
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, dest);
+  }
+});
+
+// Copy assets folder
+function copyFolderRecursiveSync(source, target) {
+  if (!fs.existsSync(source)) return;
+  if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
+  const items = fs.readdirSync(source);
+  items.forEach(item => {
+    const srcPath = path.join(source, item);
+    const targetPath = path.join(target, item);
+    if (fs.lstatSync(srcPath).isDirectory()) {
+      copyFolderRecursiveSync(srcPath, targetPath);
+    } else {
+      fs.copyFileSync(srcPath, targetPath);
+    }
+  });
+}
+copyFolderRecursiveSync(path.join(rootDir, 'assets'), path.join(distDir, 'assets'));
+console.log('✓ Clean distribution assets mirrored to dist/ successfully.');
+
+console.log('\n✓ ALL JAVASCRIPT ENGINES OBFUSCATED & PACKAGED FOR STORE DISTRIBUTION!');

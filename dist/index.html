@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>KUBERAN Compass • Outdoor &amp; Celestial Navigation</title>
+  <meta name="description" content="Professional wilderness navigation suite featuring real-time magnetic &amp; true heading, AR sighting HUD, dual-axis inclinometer, GPS trail tracker, celestial ephemeris, emergency SOS signaling, and offline waypoint navigation.">
+  <meta name="theme-color" content="#08111e">
+
+  <!-- PWA & Mobile Icons -->
+  <link rel="manifest" href="manifest.webmanifest?v=5.1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kuberan Compass">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=5.1.0">
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=5.1.0">
+  <link rel="alternate icon" type="image/png" href="icon-192.png?v=5.1.0">
+
+  <link rel="stylesheet" href="style.css?v=5.1.0">
+</head>
+<body class="theme-marine">
+  <div class="stars-bg"></div>
+
+  <!-- Fullscreen AR Camera Background & Sighting Viewport -->
+  <div id="arCameraContainer" class="ar-camera-container hidden">
+    <video id="arVideoFeed" class="ar-video-feed" playsinline muted autoplay></video>
+    <div class="ar-hud-overlay">
+      <svg id="arReticleSvg" class="ar-reticle-svg" viewBox="0 0 400 400">
+        <circle cx="200" cy="200" r="85" class="ar-reticle-circle" />
+        <circle cx="200" cy="200" r="3" class="ar-reticle-dot" />
+        <line x1="200" y1="40" x2="200" y2="165" class="ar-reticle-crosshair" />
+        <line x1="200" y1="235" x2="200" y2="360" class="ar-reticle-crosshair" />
+        <line x1="40" y1="200" x2="165" y2="200" class="ar-reticle-crosshair" />
+        <line x1="235" y1="200" x2="360" y2="200" class="ar-reticle-crosshair" />
+      </svg>
+      <div class="ar-telemetry-badge" id="arTelemetryBadge">
+        <span id="arHeadingText">000° N</span> • <span id="arTiltText">P: 0° R: 0°</span>
+      </div>
+      <div class="ar-bottom-controls">
+        <button id="btnArSnapshot" class="btn-ar-capture" title="Take Sighting Photo with Telemetry">
+          <span class="ar-cap-icon">📸</span>
+          <span>SNAP SIGHTING</span>
+        </button>
+        <button id="btnCloseAr" class="btn-ar-close" title="Exit AR Mode">✕ EXIT AR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Photosensitive Epilepsy / SOS Strobe Warning Dialog -->
+  <div id="sosWarningModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="sosWarningTitle">
+    <div class="modal-window sos-warning-window">
+      <div class="modal-header">
+        <div class="sos-warning-header-icon">⚠️</div>
+        <div>
+          <h3 id="sosWarningTitle" class="sos-warning-title">Photosensitive Epilepsy Warning</h3>
+          <span class="modal-brand-sub">Emergency Optical Signaling Safety Notice</span>
+        </div>
+        <button id="btnCloseSosWarning" class="btn-modal-close" aria-label="Close safety warning">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="sos-warning-callout" role="alert">
+          <p><strong>CAUTION:</strong> Activating Emergency SOS will trigger rapid, high-intensity optical flashes across your screen and rear camera LED torch in international Morse Code (<strong>· · · — — — · · ·</strong>).</p>
+          <p>Rapid flashing lights can trigger epileptic seizures, migraines, or severe discomfort in photosensitive individuals.</p>
+        </div>
+        <div class="sos-safety-policy">
+          <div class="safety-rule-item">
+            <span class="safety-badge">⏱️</span>
+            <span><strong>Automatic Safety Shutoff:</strong> The strobe will automatically terminate after <strong>3 minutes (180 seconds)</strong> to prevent optical exhaustion and preserve battery life.</span>
+          </div>
+          <div class="safety-rule-item">
+            <span class="safety-badge">🛑</span>
+            <span><strong>Instant Stop:</strong> Tap anywhere or click the prominent STOP button at any time to immediately extinguish all flashes.</span>
+          </div>
+        </div>
+        <div class="sos-action-buttons">
+          <button id="btnConfirmSos" class="btn-confirm-sos">ACTIVATE SOS STROBE</button>
+          <button id="btnCancelSos" class="btn-cancel-sos">CANCEL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen SOS Morse Strobe Overlay -->
+  <div id="sosOverlay" class="sos-overlay hidden" role="alert" aria-live="assertive">
+    <div class="sos-content">
+      <div class="sos-banner">EMERGENCY SOS ACTIVE</div>
+      <div class="sos-morse-text">· · · — — — · · ·</div>
+      <div class="sos-desc">Flashing screen and camera torch in international Morse Code</div>
+      <div class="sos-timer-indicator">Auto-shutoff in <span id="sosCountdown">180</span>s</div>
+      <button id="btnStopSos" class="btn-sos-stop">STOP SOS STROBE</button>
+    </div>
+  </div>
+
+  <!-- Hardware Magnetometer Fallback Banner -->
+  <div id="magnetometerWarningBanner" class="magnetometer-banner hidden" role="alert">
+    <div class="magnetometer-banner-body">
+      <span class="magnetometer-banner-icon">🧭</span>
+      <div class="magnetometer-banner-text">
+        <strong>Hardware Compass Sensor Unavailable</strong>
+        <span>This device lacks a physical geomagnetic magnetometer. You can drag the compass dial manually or use GPS Course-Over-Ground when moving outdoors.</span>
+      </div>
+      <button id="btnDismissMagnetometer" class="btn-banner-dismiss" aria-label="Dismiss sensor notice">✕</button>
+    </div>
+  </div>
+
+  <!-- EMF Anomaly Alert Banner -->
+  <div id="emfWarningBanner" class="emf-banner hidden">
+    <div class="emf-banner-body">
+      <span class="emf-banner-icon">⚠️</span>
+      <div class="emf-banner-text">
+        <strong id="emfBannerTitle">Magnetic Distortion Detected!</strong>
+        <span id="emfBannerMsg">Nearby steel, rebar, or electronics may affect compass accuracy.</span>
+      </div>
+      <button id="btnDismissEmf" class="btn-emf-dismiss">✕</button>
+    </div>
+  </div>
+
+  <!-- Primary Application Wrapper -->
+  <main class="app-container" id="app">
+    <!-- Top Header Bar -->
+    <header class="app-header">
+      <div class="brand-group">
+        <a href="https://kuberansilks.com/" target="_blank" rel="noopener noreferrer" class="kuberan-logo-link" title="Visit Kuberan Silks">
+          <img src="assets/images/kuberan_logo_white_bg.png" alt="Kuberan Silks - Chickpet, Bengaluru" class="kuberan-header-logo">
+        </a>
+        <div class="brand-text">
+          <span class="app-name"><span class="brand-kuberan">KUBERAN</span> Compass</span>
+          <span class="app-sub" id="northModeLabel">MAGNETIC NORTH</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- North Mode Toggle -->
+        <button id="btnToggleNorth" class="icon-btn" title="Toggle True/Magnetic North" aria-label="Toggle North Mode">
+          <span class="mode-pill" id="northPill">MAG</span>
+        </button>
+        <!-- Theme Toggle -->
+        <button id="btnTheme" class="icon-btn" title="Switch Theme" aria-label="Switch Theme">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            <circle cx="12" cy="12" r="5" />
+          </svg>
+        </button>
+        <!-- Target Bearing Lock -->
+        <button id="btnBearingLock" class="icon-btn" title="Lock Target Bearing" aria-label="Lock Bearing" aria-pressed="false">
+          <svg id="bearingLockIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" />
+            <line x1="12" y1="2" x2="12" y2="6" />
+            <line x1="12" y1="18" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="6" y2="12" />
+            <line x1="18" y1="12" x2="22" y2="12" />
+          </svg>
+        </button>
+        <!-- Info / Download / QR -->
+        <button id="btnInfo" class="icon-btn" title="Install App & Info" aria-label="Install App and Info">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Tactical Quick Action Toolbar (AR Sighting, Night Vision, SOS Morse, Audio) -->
+    <nav class="tactical-action-bar" aria-label="Tactical Tools">
+      <button id="btnToggleAr" class="tactical-tool-btn" title="AR Camera Sighting HUD" aria-label="AR Camera HUD">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>AR HUD</span>
+      </button>
+      <button id="btnToggleNightVision" class="tactical-tool-btn" title="Tactical Night Vision (Red Mode)" aria-label="Tactical Night Vision">
+        <span class="tool-dot-pill" id="nightPill" aria-hidden="true"></span>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <span>Night Vision</span>
+      </button>
+      <button id="btnToggleSos" class="tactical-tool-btn btn-tactical-sos" title="Emergency SOS Morse Flasher" aria-label="Emergency SOS Morse Flasher">
+        <span class="sos-mini-badge" aria-hidden="true">SOS</span>
+        <span>Strobe</span>
+      </button>
+      <button id="btnAudioToggle" class="tactical-tool-btn" title="Toggle Sound / Spoken Chime" aria-label="Toggle Sound">
+        <span id="audioPill" class="audio-status-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        </span>
+        <span>Audio</span>
+      </button>
+    </nav>
+
+    <!-- iOS Sensor Permission Required Overlay Banner -->
+    <div id="iosPermissionBanner" class="permission-banner hidden">
+      <div class="banner-content">
+        <div class="banner-icon">🧭</div>
+        <div class="banner-text">
+          <strong>Enable Compass Sensors</strong>
+          <span>Tap to activate your device's precision motion sensors</span>
+        </div>
+        <button id="btnGrantSensor" class="btn-primary">Enable</button>
+      </div>
+    </div>
+
+    <!-- Main Display: Heading & Bearing -->
+    <section class="readout-section">
+      <div class="bearing-container" id="bearingContainer" title="Tap to hear spoken heading" aria-label="Spoken heading announcement">
+        <div class="primary-heading">
+          <span id="headingDegrees" class="heading-num">0</span>
+          <span class="degree-symbol">°</span>
+        </div>
+        <div class="cardinal-direction" id="headingCardinal">N</div>
+      </div>
+
+      <div class="secondary-telemetry">
+        <div class="telemetry-pill">
+          <span class="label">MILS</span>
+          <span class="val" id="milsValue">0</span>
+        </div>
+        <div class="telemetry-pill" id="targetLockPill">
+          <span class="label">TARGET</span>
+          <span class="val" id="targetValue">--</span>
+        </div>
+        <div class="telemetry-pill">
+          <span class="label">BACK AZ</span>
+          <span class="val" id="backAzimuthValue">180°</span>
+        </div>
+        <div class="telemetry-pill" id="emfPill" title="Magnetic Field Flux Density">
+          <span class="label">EMF</span>
+          <span class="val" id="emfValue">45 µT</span>
+        </div>
+      </div>
+
+      <div id="targetDeviationBar" class="deviation-bar hidden">
+        <span class="dev-arrow" id="devArrow">◀</span>
+        <span class="dev-text" id="devText">0° OFF TARGET</span>
+        <button id="btnClearTarget" class="btn-clear-target" title="Clear Target" aria-label="Clear Target">✕</button>
+      </div>
+    </section>
+
+    <!-- Compass Dial Assembly -->
+    <section class="dial-section">
+      <!-- Fixed Lubber Line (Top pointer) -->
+      <div class="lubber-assembly">
+        <div class="lubber-pointer"></div>
+        <div class="lubber-line"></div>
+      </div>
+
+      <!-- Dial Frame -->
+      <div class="compass-viewport">
+        <!-- Target Marker Flag (stays on locked target heading) -->
+        <div class="target-marker-ring" id="targetMarkerRing">
+          <div class="target-marker-flag" id="targetFlag"></div>
+        </div>
+
+        <!-- Waypoint Beacon Ring (points to active saved waypoint) -->
+        <div class="waypoint-beacon-ring" id="waypointBeaconRing">
+          <div class="waypoint-beacon-arrow" id="waypointBeaconArrow" title="Waypoint Direction"></div>
+        </div>
+
+        <!-- Rotating Compass Card -->
+        <div class="compass-card" id="compassCard">
+          <!-- Virtual Sundial Shadow Line -->
+          <div class="sundial-shadow" id="sundialShadow" title="Virtual Sundial Shadow"></div>
+          <div class="sundial-pin" id="sundialPin"></div>
+
+          <!-- Dial SVG with high-res precision ticks and typography -->
+          <svg class="dial-svg" viewBox="0 0 500 500" id="dialSvg">
+            <!-- Dynamic elements built via app.js for ultra-sharp vector scaling -->
+          </svg>
+
+          <!-- Real-Time Celestial Sun Marker -->
+          <div class="celestial-marker sun-marker" id="sunMarker" title="Sun Azimuth">
+            <div class="marker-flag sun-flag">☀️</div>
+          </div>
+
+          <!-- Real-Time Celestial Moon Marker -->
+          <div class="celestial-marker moon-marker" id="moonMarker" title="Moon Azimuth">
+            <div class="marker-flag moon-flag" id="moonFlag">🌙</div>
+          </div>
+
+          <!-- Real-Time Celestial Polaris (North Star) Marker -->
+          <div class="celestial-marker polaris-marker" id="polarisMarker" title="Polaris (North Star)">
+            <div class="marker-flag polaris-flag">⭐</div>
+          </div>
+
+          <!-- Real-Time Celestial Southern Cross Marker -->
+          <div class="celestial-marker crux-marker" id="cruxMarker" title="Southern Cross (Crux)">
+            <div class="marker-flag crux-flag">✨</div>
+          </div>
+        </div>
+
+        <!-- Center Crosshair & Dual-Axis Bubble Level -->
+        <div class="center-level-housing" id="levelHousing" title="Center Bubble Level (Pitch & Roll)">
+          <!-- Crosshairs -->
+          <div class="level-crosshair-h"></div>
+          <div class="level-crosshair-v"></div>
+          <div class="level-ring ring-1"></div>
+          <div class="level-ring ring-2"></div>
+          <!-- Moving Bubble -->
+          <div class="level-bubble" id="levelBubble"></div>
+          <!-- Level locked badge -->
+          <div class="level-zero-indicator" id="levelZeroIndicator">0°</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Active Waypoint Floating HUD -->
+    <div id="waypointHud" class="waypoint-hud hidden">
+      <div class="wp-hud-left">
+        <span class="wp-hud-icon" id="wpActiveIcon">🚗</span>
+        <div class="wp-hud-info">
+          <span class="wp-hud-name" id="wpActiveName">Parked Car</span>
+          <span class="wp-hud-dist" id="wpActiveDist">-- m</span>
+        </div>
+      </div>
+      <div class="wp-hud-turn" id="wpActiveTurn">◀ 0°</div>
+      <button id="btnDismissActiveWp" class="btn-hud-dismiss" title="Stop Navigating" aria-label="Stop Navigating">✕</button>
+    </div>
+
+    <!-- 4-Tab Bottom Navigation Dock -->
+    <nav class="navigation-dock" role="tablist" aria-label="Feature Views">
+      <button class="dock-tab active" id="tabBtnCompass" role="tab" aria-selected="true" aria-controls="tabPanelCompass">
+        <svg class="dock-tab-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" fill-opacity="0.3"/>
+        </svg>
+        <span class="dock-tab-label">Compass</span>
+      </button>
+      <button class="dock-tab" id="tabBtnCelestial" role="tab" aria-selected="false" aria-controls="tabPanelCelestial">
+        <svg class="dock-tab-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+        <span class="dock-tab-label">Celestial</span>
+      </button>
+      <button class="dock-tab" id="tabBtnWaypoints" role="tab" aria-selected="false" aria-controls="tabPanelWaypoints">
+        <svg class="dock-tab-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span class="dock-tab-label">Waypoints</span>
+      </button>
+      <button class="dock-tab" id="tabBtnTracker" role="tab" aria-selected="false" aria-controls="tabPanelTracker">
+        <svg class="dock-tab-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+          <line x1="8" y1="2" x2="8" y2="18"/>
+          <line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+        <span class="dock-tab-label">Trek & GPX</span>
+      </button>
+    </nav>
+
+    <!-- Tab Panels Container -->
+    <div class="tab-panels-wrap">
+      <!-- ================= PANEL 1: COMPASS & LEVEL ================= -->
+      <div class="tab-panel active" id="tabPanelCompass" role="tabpanel" aria-labelledby="tabBtnCompass">
+        <!-- Level Inclinometer & Tilt Readout -->
+        <section class="level-details-section">
+          <div class="tilt-card">
+            <span class="tilt-label">PITCH</span>
+            <div class="tilt-gauge-bar"><div class="tilt-gauge-fill" id="pitchGauge"></div></div>
+            <span class="tilt-value" id="pitchValue">0°</span>
+          </div>
+          <div class="tilt-card">
+            <span class="tilt-label">ROLL</span>
+            <div class="tilt-gauge-bar"><div class="tilt-gauge-fill" id="rollGauge"></div></div>
+            <span class="tilt-value" id="rollValue">0°</span>
+          </div>
+          <div class="tilt-card level-status-card" id="levelStatusCard">
+            <span class="tilt-label">SURFACE</span>
+            <span class="level-status-text" id="levelStatusText">LEVELING...</span>
+          </div>
+        </section>
+
+        <!-- GPS Location & Environmental Telemetry -->
+        <section class="telemetry-panel">
+          <div class="telemetry-grid" title="Tap any metric to refresh GPS location" aria-label="GPS Location and Environmental Telemetry - Tap to refresh">
+            <div class="telemetry-item">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">📍</span>
+                <span class="telemetry-title">LATITUDE</span>
+              </div>
+              <span class="telemetry-val" id="gpsLat">--° --' --" N</span>
+              <span class="telemetry-sub" id="gpsLatDec">Waiting for GPS...</span>
+            </div>
+
+            <div class="telemetry-item">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">🌐</span>
+                <span class="telemetry-title">LONGITUDE</span>
+              </div>
+              <span class="telemetry-val" id="gpsLng">--° --' --" E</span>
+              <span class="telemetry-sub" id="gpsLngDec">Tap to refresh</span>
+            </div>
+
+            <div class="telemetry-item">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">⛰️</span>
+                <span class="telemetry-title">ALTITUDE</span>
+              </div>
+              <span class="telemetry-val" id="gpsAlt">-- m</span>
+              <span class="telemetry-sub" id="gpsAccuracy">Accuracy: ±-- m</span>
+            </div>
+
+            <div class="telemetry-item" id="telemetryCalibrationItem" title="Tap to open Sensor Calibration Studio & Adjust Alignment">
+              <div class="telemetry-item-header">
+                <span class="telemetry-icon">🧲</span>
+                <span class="telemetry-title">DECL / ACCURACY</span>
+              </div>
+              <span class="telemetry-val" id="gpsDeclination">0.0°</span>
+              <span class="telemetry-sub" id="sensorStatus"><span id="sensorAccuracyBadge">Acc: ±3° (High)</span></span>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="panel-actions">
+            <button id="btnCopyCoords" class="btn-action" aria-label="Copy GPS Coordinates">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              <span>Copy Coords</span>
+            </button>
+            <button id="btnMarkSpotAction" class="btn-action" aria-label="Save Current Location as Waypoint">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                <circle cx="12" cy="9" r="2.5"/>
+              </svg>
+              <span>Mark Spot</span>
+            </button>
+            <button id="btnCalibrate" class="btn-action" aria-label="Calibrate Compass Sensors & Adjust Alignment">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+              </svg>
+              <span>Calibrate</span>
+            </button>
+            <button id="btnInstallApp" class="btn-action btn-install hidden" title="Install to Home Screen" aria-label="Install App to Home Screen">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Install App</span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= PANEL 2: CELESTIAL ASTRONOMY & SUNDIAL ================= -->
+      <div class="tab-panel" id="tabPanelCelestial" role="tabpanel" aria-labelledby="tabBtnCelestial" hidden>
+        <section class="celestial-panel">
+          <!-- Sundial & Apparent Solar Time Card -->
+          <div class="celestial-card">
+            <div class="cel-card-header">
+              <div class="cel-card-title">
+                <span class="cel-icon">🕒</span>
+                <strong>Sundial & True Solar Time</strong>
+              </div>
+              <span class="cel-badge" id="sundialStatusBadge">Active Shadow</span>
+            </div>
+            
+            <div class="cel-metric-row">
+              <div class="cel-metric">
+                <span class="cel-label">TRUE SOLAR TIME</span>
+                <span class="cel-val" id="solarTimeVal">--:--:--</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">EQ OF TIME (EoT)</span>
+                <span class="cel-val" id="eotVal">-- m</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">SHADOW LENGTH</span>
+                <span class="cel-val" id="shadowLengthVal">-- px</span>
+              </div>
+            </div>
+            <p class="cel-hint">Virtual gnomon projects an authentic solar shadow on your dial based on your exact longitude and Earth's orbital eccentricity.</p>
+          </div>
+
+          <!-- Solar Ephemeris Card -->
+          <div class="celestial-card">
+            <div class="cel-card-header">
+              <div class="cel-card-title">
+                <span class="cel-icon">☀️</span>
+                <strong>Solar Ephemeris & Sun Position</strong>
+              </div>
+              <span class="cel-badge" id="solarDayState">Daylight</span>
+            </div>
+            
+            <div class="cel-metric-row">
+              <div class="cel-metric">
+                <span class="cel-label">SUN AZIMUTH</span>
+                <span class="cel-val" id="sunAzimuthVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">SUN ELEVATION</span>
+                <span class="cel-val" id="sunElevationVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">SOLAR NOON</span>
+                <span class="cel-val" id="solarNoonVal">--:--</span>
+              </div>
+            </div>
+
+            <div class="cel-times-grid">
+              <div class="cel-time-item">
+                <span class="cel-time-icon">🌅</span>
+                <span class="cel-time-label">SUNRISE</span>
+                <span class="cel-time-val" id="sunriseTimeVal">--:--</span>
+              </div>
+              <div class="cel-time-item">
+                <span class="cel-time-icon">🌇</span>
+                <span class="cel-time-label">SUNSET</span>
+                <span class="cel-time-val" id="sunsetTimeVal">--:--</span>
+              </div>
+              <div class="cel-time-item">
+                <span class="cel-time-icon">⏳</span>
+                <span class="cel-time-label">DAY LENGTH</span>
+                <span class="cel-time-val" id="dayLengthVal">--h --m</span>
+              </div>
+              <div class="cel-time-item">
+                <span class="cel-time-icon">✨</span>
+                <span class="cel-time-label">GOLDEN HOUR</span>
+                <span class="cel-time-val" id="goldenHourVal">--:--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lunar Tracking Card -->
+          <div class="celestial-card">
+            <div class="cel-card-header">
+              <div class="cel-card-title">
+                <span class="cel-icon" id="lunarPhaseIcon">🌙</span>
+                <strong id="lunarPhaseTitle">Moon Phase & Tracking</strong>
+              </div>
+              <span class="cel-badge badge-med" id="lunarIllumBadge">--% Illum</span>
+            </div>
+
+            <div class="cel-metric-row">
+              <div class="cel-metric">
+                <span class="cel-label">MOON AZIMUTH</span>
+                <span class="cel-val" id="moonAzimuthVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">MOON ELEVATION</span>
+                <span class="cel-val" id="moonElevationVal">--°</span>
+              </div>
+              <div class="cel-metric">
+                <span class="cel-label">LUNAR AGE</span>
+                <span class="cel-val" id="moonAgeVal">-- d</span>
+              </div>
+            </div>
+            
+            <p class="cel-hint">Sun and Moon markers on the compass dial reflect real-time astronomical bearings calculated locally from your GPS position.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= PANEL 3: OFFLINE WAYPOINTS ================= -->
+      <div class="tab-panel" id="tabPanelWaypoints" role="tabpanel" aria-labelledby="tabBtnWaypoints" hidden>
+        <section class="waypoints-panel">
+          <div class="wp-header-bar">
+            <div>
+              <h3 class="wp-panel-title">Saved Waypoints</h3>
+              <span class="wp-panel-sub">100% Offline Great-Circle Navigation</span>
+            </div>
+            <button id="btnOpenMarkModal" class="btn-primary-sm">+ Mark Spot</button>
+          </div>
+
+          <!-- Active Waypoint Card -->
+          <div class="active-waypoint-card hidden" id="activeWpCard">
+            <div class="active-wp-badge">ACTIVE TARGET</div>
+            <div class="active-wp-body">
+              <span class="active-wp-icon" id="activeCardIcon">🚗</span>
+              <div class="active-wp-details">
+                <h4 id="activeCardName">Parked Car</h4>
+                <div class="active-wp-stats">
+                  <span class="active-wp-dist" id="activeCardDist">-- m away</span>
+                  <span class="active-wp-brg" id="activeCardBearing">Bearing: --°</span>
+                </div>
+              </div>
+              <button id="btnActiveStopNav" class="btn-stop-nav" title="Clear destination">Stop</button>
+            </div>
+          </div>
+
+          <!-- Waypoints List -->
+          <div class="waypoints-list" id="waypointsList">
+            <!-- Dynamic list generated by app.js -->
+          </div>
+
+          <div class="wp-empty-state hidden" id="wpEmptyState">
+            <div class="empty-icon">📍</div>
+            <strong>No Waypoints Saved Yet</strong>
+            <p>Save your parked car, campsite, hotel, or meeting point. The compass needle will guide you directly back offline!</p>
+            <button id="btnEmptyMark" class="btn-primary">Mark Current Location</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= PANEL 4: GPS TREK & GPX TRACKER ================= -->
+      <div class="tab-panel" id="tabPanelTracker" role="tabpanel" aria-labelledby="tabBtnTracker" hidden>
+        <section class="tracker-panel">
+          <div class="trk-header-card">
+            <div class="trk-status-row">
+              <div class="trk-rec-badge" id="trkRecBadge"><span class="rec-dot"></span> <span id="trkRecText">IDLE</span></div>
+              <span class="trk-point-count" id="trkPointCount">0 breadcrumbs</span>
+            </div>
+            <div class="trk-metrics-grid">
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">DISTANCE</span>
+                <span class="trk-metric-val" id="trkDistanceVal">0.00 km</span>
+              </div>
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">DURATION</span>
+                <span class="trk-metric-val" id="trkDurationVal">00:00:00</span>
+              </div>
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">AVG SPEED</span>
+                <span class="trk-metric-val" id="trkPaceVal">0.0 km/h</span>
+              </div>
+              <div class="trk-metric-item">
+                <span class="trk-metric-label">START ELEV</span>
+                <span class="trk-metric-val" id="trkElevVal">-- m</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="trk-actions-row">
+            <button id="btnToggleTrek" class="btn-trek-primary">▶ Start Recording Trek</button>
+            <button id="btnBacktrack" class="btn-trek-action" disabled title="Reverse heading back to trek starting point">↩ Backtrack</button>
+          </div>
+
+          <div class="trk-io-row">
+            <button id="btnExportGpx" class="btn-trek-secondary" disabled>📥 Export GPX File</button>
+            <label class="btn-trek-secondary btn-file-label" for="gpxFileInput">
+              📤 Import GPX / Trails
+              <input type="file" id="gpxFileInput" accept=".gpx,.xml" style="display:none;">
+            </label>
+          </div>
+          <p class="trk-hint">Records breadcrumb trail completely offline with zero data usage. Backtrack calculates direct line-of-sight reverse heading back to where you started.</p>
+        </section>
+      </div>
+    </div>
+
+    <!-- Toast Alert Notification -->
+    <div id="toast" class="toast hidden">Copied to clipboard</div>
+  </main>
+
+  <!-- Waypoint Creation Modal -->
+  <div id="waypointModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="wpModalTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-brand-wrap">
+          <div class="cal-modal-icon">📍</div>
+          <div>
+            <h3 id="wpModalTitle">Mark Current Location</h3>
+            <span class="modal-brand-sub">Save GPS coordinates for offline return</span>
+          </div>
+        </div>
+        <button id="btnCloseWpModal" class="btn-modal-close" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="wp-form-group">
+          <label for="wpNameInput" class="wp-form-label">LOCATION NAME</label>
+          <input type="text" id="wpNameInput" class="wp-input" placeholder="e.g. Parked Car, Campsite, Hotel" maxlength="32">
+        </div>
+
+        <div class="wp-form-group">
+          <label class="wp-form-label">CHOOSE ICON</label>
+          <div class="wp-icon-selector">
+            <button type="button" class="wp-icon-choice active" data-icon="🚗">🚗</button>
+            <button type="button" class="wp-icon-choice" data-icon="⛺">⛺</button>
+            <button type="button" class="wp-icon-choice" data-icon="📍">📍</button>
+            <button type="button" class="wp-icon-choice" data-icon="🏨">🏨</button>
+            <button type="button" class="wp-icon-choice" data-icon="🌲">🌲</button>
+            <button type="button" class="wp-icon-choice" data-icon="☕">☕</button>
+          </div>
+        </div>
+
+        <div class="wp-coords-preview">
+          <span class="wp-coords-label">CURRENT COORDINATES:</span>
+          <span class="wp-coords-val" id="wpModalCoords">Acquiring GPS...</span>
+        </div>
+
+        <div class="modal-footer-actions">
+          <button type="button" class="btn-modal-cancel" id="btnCancelWp">Cancel</button>
+          <button type="button" class="btn-primary" id="btnConfirmSaveWp">Save & Navigate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calibration Studio Modal -->
+  <div id="calibrationModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calModalTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-brand-wrap">
+          <div class="cal-modal-icon">🧭</div>
+          <div>
+            <h3 id="calModalTitle">Compass Calibration</h3>
+            <span class="modal-brand-sub">Hardware Magnetometer & Alignment</span>
+          </div>
+        </div>
+        <button id="btnCloseCalModal" class="btn-modal-close" aria-label="Close Calibration Modal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Live Sensor Health Status -->
+        <div class="cal-status-card">
+          <div class="cal-status-row">
+            <span class="cal-label">SENSOR STATUS:</span>
+            <span class="cal-badge badge-high" id="calSensorBadge">Hardware Active</span>
+          </div>
+          <div class="cal-status-row">
+            <span class="cal-label">CALIBRATION CONFIDENCE:</span>
+            <span class="cal-val" id="calAccuracyText">±3° (High Accuracy)</span>
+          </div>
+          <div class="cal-status-row">
+            <span class="cal-label">MANUAL OFFSET:</span>
+            <span class="cal-val" id="calActiveOffsetVal">0.0°</span>
+          </div>
+        </div>
+
+        <!-- 3D Figure-8 Calibration Guide -->
+        <div class="fig8-guide-card">
+          <div class="fig8-canvas-wrap">
+            <svg class="fig8-svg" viewBox="0 0 180 90" width="180" height="90">
+              <defs>
+                <linearGradient id="fig8Grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="var(--accent-north)" />
+                  <stop offset="50%" stop-color="var(--accent-cyan)" />
+                  <stop offset="100%" stop-color="var(--accent-north)" />
+                </linearGradient>
+                <filter id="fig8Glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2.5" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              <!-- Base Track Background -->
+              <path d="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-width="6" stroke-linecap="round"/>
+              
+              <!-- Dashed Motion Track -->
+              <path d="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" fill="none" stroke="var(--dial-ticks-major)" stroke-width="2" stroke-dasharray="6,6" stroke-opacity="0.5"/>
+              
+              <!-- Animated Glowing Trace -->
+              <path d="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" fill="none" stroke="url(#fig8Grad)" stroke-width="3.5" stroke-linecap="round" class="fig8-path-anim" filter="url(#fig8Glow)"/>
+
+              <!-- Center intersection indicator -->
+              <circle cx="90" cy="45" r="3.5" fill="var(--dial-ticks-major)" fill-opacity="0.5" />
+
+              <!-- Animated Phone Traveling the Figure-8 Path -->
+              <g class="fig8-travelling-phone">
+                <animateMotion dur="4s" repeatCount="indefinite" path="M 90,45 C 60,15 25,15 25,45 C 25,75 60,75 90,45 C 120,15 155,15 155,45 C 155,75 120,75 90,45 Z" rotate="auto" />
+                <!-- Miniature Phone -->
+                <rect x="-7" y="-12" width="14" height="24" rx="3" fill="#0f172a" stroke="var(--accent-north)" stroke-width="1.8" />
+                <rect x="-4.5" y="-8" width="9" height="13" rx="1.5" fill="var(--accent-cyan)" fill-opacity="0.7" />
+                <circle cx="0" cy="7.5" r="1.2" fill="var(--accent-north)" />
+              </g>
+            </svg>
+          </div>
+          <div class="fig8-instructions">
+            <strong>Wave Phone in Figure-8 Motion</strong>
+            <span>Gently tilt and wave your device in a figure-8 / infinity motion 3 to 4 times to calibrate all 3 sensor axes.</span>
+          </div>
+        </div>
+
+        <!-- Manual Offset Alignment -->
+        <div class="manual-offset-card">
+          <div class="manual-offset-header">
+            <h4>Manual Calibration Offset</h4>
+            <span class="offset-badge" id="calOffsetBadge">+0.0°</span>
+          </div>
+          <p class="cal-hint">Compensate for magnetic phone cases or fine-tune against an external reference needle.</p>
+          
+          <div class="offset-controls-grid">
+            <button class="btn-offset-adjust" id="btnOffsetMinus5" aria-label="Subtract 5 degrees from offset">-5&deg;</button>
+            <button class="btn-offset-adjust" id="btnOffsetMinus1" aria-label="Subtract 1 degree from offset">-1&deg;</button>
+            <button class="btn-offset-adjust btn-offset-reset" id="btnOffsetReset" aria-label="Reset offset to 0 degrees">Reset (0&deg;)</button>
+            <button class="btn-offset-adjust" id="btnOffsetPlus1" aria-label="Add 1 degree to offset">+1&deg;</button>
+            <button class="btn-offset-adjust" id="btnOffsetPlus5" aria-label="Add 5 degrees to offset">+5&deg;</button>
+          </div>
+
+          <button class="btn-set-north" id="btnZeroToNorth">
+            🎯 Set Current Heading as True Reference
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info & Install Modal -->
+  <div id="infoModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-brand-wrap">
+          <a href="https://kuberansilks.com/" target="_blank" rel="noopener noreferrer" class="kuberan-logo-link" title="Visit Kuberan Silks">
+            <img src="assets/images/kuberan_logo_white_bg.png" alt="Kuberan Silks - Chickpet, Bengaluru" class="kuberan-modal-logo">
+          </a>
+          <div>
+            <h3 id="modalTitle">KUBERAN Compass</h3>
+            <span class="modal-brand-sub">Wilderness &amp; Celestial Navigation</span>
+          </div>
+        </div>
+        <button id="btnCloseModal" class="btn-modal-close" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Statutory Outdoor Navigation Disclaimer -->
+        <div class="statutory-disclaimer-card" role="note">
+          <div class="disclaimer-header">
+            <span class="disclaimer-icon">⚠️</span>
+            <strong>STATUTORY OUTDOOR NAVIGATION NOTICE</strong>
+          </div>
+          <p class="disclaimer-text">Electronic compasses and smartphone GPS are auxiliary tools. Never rely solely on a smartphone for life-critical wilderness survival. Always carry a physical lensatic compass and topographic map.</p>
+        </div>
+
+        <div class="qr-container">
+          <div id="qrcodeBox" class="qrcode-box"></div>
+          <span class="qr-caption">Scan with phone camera to open</span>
+        </div>
+
+        <div class="install-instructions">
+          <h4>📲 How to Download to Phone:</h4>
+          <div class="step-card">
+            <div class="step-badge">iOS</div>
+            <div class="step-text">Open in <strong>Safari</strong> → Tap <svg class="inline-icon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg> <strong>Share</strong> → Tap <strong>"Add to Home Screen"</strong>.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-badge">Android</div>
+            <div class="step-text">Open in <strong>Chrome</strong> → Tap <strong>"Install App"</strong> or the three dots <svg class="inline-icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg> → <strong>"Add to Home screen"</strong>.</div>
+          </div>
+        </div>
+
+        <div class="features-list">
+          <h4>Features:</h4>
+          <ul>
+            <li>✨ 100% Offline Capability with Service Worker</li>
+            <li>🧭 Real-time iOS & Android Compass Hardware Sensors</li>
+            <li>📷 AR Camera Sighting HUD with Telemetry Stamp</li>
+            <li>🗺️ GPS Breadcrumb Trekking, Backtrack & GPX Import/Export</li>
+            <li>🔴 Tactical Night Vision (Red Mode) & Stargazer Guide</li>
+            <li>🆘 Emergency SOS Morse Code Flasher (Screen + Torch)</li>
+            <li>🧲 Live EMF Magnetic Flux Density & Metal Anomaly Alert</li>
+            <li>🕒 Virtual Sundial Shadow & Local Apparent Solar Time</li>
+            <li>☀️ Solar Ephemeris: Real-time Sun Azimuth, Elevation & Golden Hour</li>
+            <li>🌙 Lunar Tracking: Live Moon Phase, Illumination % & Moon Azimuth</li>
+            <li>📍 Offline Waypoint Navigator ("Find My Car / Camp / Spot")</li>
+            <li>🔊 Synthetic Audio Chimes & Spoken Heading Announcements</li>
+            <li>🎯 Advanced Sensor Calibration & Manual Alignment Studio</li>
+            <li>⚖️ Dual-axis Pitch & Roll Inclinometer Bubble Level</li>
+            <li>🎯 Target Heading / Bearing Deviation Lock</li>
+            <li>📍 GPS Coordinates (Decimal + DMS), Altitude & Accuracy</li>
+            <li>📳 Haptic Vibration feedback on Cardinal headings</li>
+            <li>🎨 4 Visual Themes: Tactical OLED, Apple Glass, Marine Brass, Red Night</li>
+          </ul>
+        </div>
+
+        <div class="app-version">
+          <span>KUBERAN Compass App v5.1.0 • Official Edition</span>
+          <a id="githubRepoLink" href="https://github.com/Jee1VK/compass-app" target="_blank" rel="noopener noreferrer">View GitHub Repo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="qrcode.min.js?v=5.1.0"></script>
+  <script src="compass-bundle.min.js?v=5.1.0"></script>
+</body>
+</html>
