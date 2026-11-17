@@ -133,9 +133,19 @@
       </div>
 
       <div class="header-actions">
-        <!-- North Mode Toggle -->
+        <!-- North Mode Toggle & Settings -->
         <button id="btnToggleNorth" class="icon-btn" title="Toggle True/Magnetic North" aria-label="Toggle North Mode">
           <span class="mode-pill" id="northPill">MAG</span>
+        </button>
+        <button id="btnNorthSettings" class="icon-btn" title="Configure True North & Declination Settings" aria-label="Heading Settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+        <!-- Desktop Simulation Toggle Button -->
+        <button id="btnToggleSimPanel" class="icon-btn" title="Toggle Hardware Simulation Panel" aria-label="Toggle Sensor Simulator">
+          <span style="font-size: 13px;">🖥️</span>
         </button>
         <!-- Theme Toggle -->
         <button id="btnTheme" class="icon-btn" title="Switch Theme" aria-label="Switch Theme">
@@ -363,6 +373,56 @@
     <div class="tab-panels-wrap">
       <!-- ================= PANEL 1: COMPASS & LEVEL ================= -->
       <div class="tab-panel active" id="tabPanelCompass" role="tabpanel" aria-labelledby="tabBtnCompass">
+        <!-- Desktop & Unsupported Device Simulation Panel -->
+        <div id="desktopSimulationPanel" class="simulation-panel hidden" role="region" aria-label="Desktop Compass Simulation">
+          <div class="sim-panel-header">
+            <div class="sim-header-title">
+              <span class="sim-icon">🖥️</span>
+              <div>
+                <h4>Hardware Sensor Simulator</h4>
+                <span class="sim-sub">Desktop / Unsupported Magnetometer Mode</span>
+              </div>
+            </div>
+            <div class="sim-header-actions">
+              <span id="simDegreeVal" class="sim-degree-val">000° N</span>
+              <button id="btnMinimizeSim" class="btn-sim-toggle" title="Minimize / Expand Simulator" aria-label="Toggle Simulator">▲</button>
+            </div>
+          </div>
+
+          <div class="sim-panel-body" id="simPanelBody">
+            <div class="sim-slider-wrap">
+              <div class="sim-slider-labels">
+                <span>0° (N)</span>
+                <span>90° (E)</span>
+                <span>180° (S)</span>
+                <span>270° (W)</span>
+                <span>360° (N)</span>
+              </div>
+              <input type="range" id="simHeadingSlider" class="sim-slider" min="0" max="359" value="0" step="1" aria-label="Simulate Compass Heading (0° to 360°)">
+            </div>
+
+            <!-- Quick-Preset Directional Buttons -->
+            <div class="sim-presets-grid">
+              <button type="button" class="btn-sim-preset" data-heading="0" aria-label="Set heading North">N (0°)</button>
+              <button type="button" class="btn-sim-preset" data-heading="45" aria-label="Set heading North-East">NE (45°)</button>
+              <button type="button" class="btn-sim-preset" data-heading="90" aria-label="Set heading East">E (90°)</button>
+              <button type="button" class="btn-sim-preset" data-heading="135" aria-label="Set heading South-East">SE (135°)</button>
+              <button type="button" class="btn-sim-preset" data-heading="180" aria-label="Set heading South">S (180°)</button>
+              <button type="button" class="btn-sim-preset" data-heading="225" aria-label="Set heading South-West">SW (225°)</button>
+              <button type="button" class="btn-sim-preset" data-heading="270" aria-label="Set heading West">W (270°)</button>
+              <button type="button" class="btn-sim-preset" data-heading="315" aria-label="Set heading North-West">NW (315°)</button>
+            </div>
+
+            <div class="sim-fine-tune-bar">
+              <button type="button" class="btn-sim-step" data-step="-5">-5°</button>
+              <button type="button" class="btn-sim-step" data-step="-1">-1°</button>
+              <span class="sim-fine-label">Fine Adjust</span>
+              <button type="button" class="btn-sim-step" data-step="1">+1°</button>
+              <button type="button" class="btn-sim-step" data-step="5">+5°</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Level Inclinometer & Tilt Readout -->
         <section class="level-details-section">
           <div class="tilt-card">
@@ -794,6 +854,91 @@
           <button class="btn-set-north" id="btnZeroToNorth">
             🎯 Set Current Heading as True Reference
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- True North & Magnetic Declination Settings Modal -->
+  <div id="northSettingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="northSettingsTitle">
+    <div class="modal-window north-settings-window">
+      <div class="modal-header">
+        <div class="modal-brand-wrap">
+          <span class="north-modal-icon">🧭</span>
+          <div>
+            <h3 id="northSettingsTitle">Heading Reference &amp; Declination</h3>
+            <span class="modal-brand-sub">True Geographic North vs Magnetic North</span>
+          </div>
+        </div>
+        <button id="btnCloseNorthModal" class="btn-modal-close" aria-label="Close Heading Settings">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Heading Reference Mode Switch -->
+        <div class="settings-group-card">
+          <div class="settings-group-header">
+            <label class="settings-label" id="headingRefLabel">Heading Reference Mode</label>
+            <span class="reference-badge" id="currentRefBadge">MAGNETIC (MAG)</span>
+          </div>
+
+          <div class="segmented-control" role="radiogroup" aria-labelledby="headingRefLabel">
+            <button type="button" class="segmented-btn active" id="btnSelectMagNorth" role="radio" aria-checked="true">
+              <span class="seg-icon">🧲</span>
+              <span class="seg-title">Magnetic North</span>
+              <span class="seg-sub">Raw Sensor Azimuth</span>
+            </button>
+            <button type="button" class="segmented-btn" id="btnSelectTrueNorth" role="radio" aria-checked="false">
+              <span class="seg-icon">🌐</span>
+              <span class="seg-title">True North</span>
+              <span class="seg-sub">Declination Corrected</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Magnetic Declination Adjustment Card -->
+        <div class="settings-group-card">
+          <div class="settings-group-header">
+            <div>
+              <label class="settings-label" for="manualDeclinationInput">Magnetic Declination Angle</label>
+              <p class="settings-desc">Angle between Magnetic North and True North at your geographic location (+ for East, - for West).</p>
+            </div>
+          </div>
+
+          <div class="declination-input-row">
+            <div class="declination-input-wrap">
+              <input type="number" id="manualDeclinationInput" class="declination-number-input" step="0.1" min="-90" max="90" value="0.0" aria-label="Manual Magnetic Declination in degrees">
+              <span class="declination-unit">deg (°)</span>
+            </div>
+            <button type="button" id="btnGpsAutoDeclination" class="btn-auto-declination" title="Auto-calculate declination from GPS location">
+              🛰️ Auto GPS
+            </button>
+          </div>
+
+          <!-- Quick Step Adjustment Buttons -->
+          <div class="declination-quick-adjust">
+            <button type="button" class="btn-decl-step" data-adjust="-1.0">-1.0°</button>
+            <button type="button" class="btn-decl-step" data-adjust="-0.1">-0.1°</button>
+            <button type="button" class="btn-decl-step btn-decl-zero" id="btnResetDeclination">0.0°</button>
+            <button type="button" class="btn-decl-step" data-adjust="0.1">+0.1°</button>
+            <button type="button" class="btn-decl-step" data-adjust="1.0">+1.0°</button>
+          </div>
+
+          <!-- Mathematical Live Computation Preview -->
+          <div class="declination-formula-box">
+            <div class="formula-line">
+              <span class="formula-term">True Heading</span> = <span class="formula-term">Magnetic</span> + <span class="formula-term">Declination</span>
+            </div>
+            <div class="formula-calc-preview">
+              <span id="previewMagVal">000.0°</span> + 
+              <span id="previewDeclVal">+0.0°</span> = 
+              <strong id="previewTrueVal">000.0°</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="settings-action-row">
+          <button type="button" class="btn-save-settings" id="btnApplyNorthSettings">Apply &amp; Save</button>
         </div>
       </div>
     </div>
