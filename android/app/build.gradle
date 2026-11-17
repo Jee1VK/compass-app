@@ -16,8 +16,20 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            def keystoreFile = file(System.getenv("KUBERAN_KEYSTORE_PATH") ?: "../kuberan-release-key.p12")
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                storePassword System.getenv("KUBERAN_KEYSTORE_PASSWORD") ?: "kuberanCompass2026!"
+                keyAlias System.getenv("KUBERAN_KEY_ALIAS") ?: "kuberan-compass"
+                keyPassword System.getenv("KUBERAN_KEY_PASSWORD") ?: "kuberanCompass2026!"
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

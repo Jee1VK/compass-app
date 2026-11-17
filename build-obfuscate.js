@@ -181,6 +181,7 @@ if (!fs.existsSync(distDir)) {
 
 const distFiles = [
   'index.html',
+  'privacy.html',
   'style.css',
   'compass-bundle.min.js',
   'qrcode.min.js',

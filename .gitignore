@@ -15,5 +15,12 @@ ios/App/Pods/
 ios/App/DerivedData/
 .DS_Store
 
+# Release signing keys & credentials (Private, outside Git)
+*.p12
+*.jks
+*.keystore
+kuberan-release-key.p12
+signing.properties
+
 # Temporary / build files
 *.log
