@@ -1,7 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const zlib = require('zlib');
 const JavaScriptObfuscator = require('javascript-obfuscator');
 
+const APP_VERSION = '5.1.0';
+const OTA_BASE_URL = 'https://jee1vk.github.io/compass-app';
 const rootDir = __dirname;
 const srcDir = path.join(rootDir, 'src');
 
@@ -201,7 +205,7 @@ distFiles.forEach(f => {
   }
 });
 
-// Copy assets folder
+// Copy runtime assets/images folder only (exclude store marketing graphics from APK/OTA runtime)
 function copyFolderRecursiveSync(source, target) {
   if (!fs.existsSync(source)) return;
   if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
@@ -216,7 +220,150 @@ function copyFolderRecursiveSync(source, target) {
     }
   });
 }
-copyFolderRecursiveSync(path.join(rootDir, 'assets'), path.join(distDir, 'assets'));
+const staleStoreInDist = path.join(distDir, 'assets', 'store');
+if (fs.existsSync(staleStoreInDist)) {
+  fs.rmSync(staleStoreInDist, { recursive: true, force: true });
+}
+copyFolderRecursiveSync(path.join(rootDir, 'assets', 'images'), path.join(distDir, 'assets', 'images'));
 console.log('✓ Clean distribution assets mirrored to dist/ successfully.');
 
-console.log('\n✓ ALL JAVASCRIPT ENGINES OBFUSCATED & PACKAGED FOR STORE DISTRIBUTION!');
+// 6. Generate PWA-style Native OTA Live Update Bundle (ota-bundle.zip) & Manifest (ota-manifest.json)
+console.log('\nGenerating Native OTA Live Update bundle (ota-bundle.zip) & manifest (ota-manifest.json)...');
+
+function collectFilesRecursive(dir, baseDir) {
+  let results = [];
+  const entries = fs.readdirSync(dir);
+  entries.forEach(entry => {
+    const fullPath = path.join(dir, entry);
+    const relPath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+    if (fs.lstatSync(fullPath).isDirectory()) {
+      results = results.concat(collectFilesRecursive(fullPath, baseDir));
+    } else {
+      results.push({ fullPath, relPath });
+    }
+  });
+  return results.sort((a, b) => a.relPath.localeCompare(b.relPath));
+}
+
+// Compute deterministic content hash over all dist/ runtime files (excluding ota-manifest.json)
+const runtimeFiles = collectFilesRecursive(distDir, distDir).filter(f => f.relPath !== 'ota-manifest.json');
+const contentHasher = crypto.createHash('sha256');
+runtimeFiles.forEach(f => {
+  contentHasher.update(f.relPath + '\0');
+  contentHasher.update(fs.readFileSync(f.fullPath));
+  contentHasher.update('\0');
+});
+const contentHash = contentHasher.digest('hex');
+const shortHash = contentHash.slice(0, 8);
+const builtAt = new Date().toISOString();
+
+// Write embedded dist/ota-manifest.json so native APK knows its exact built-in bundle hash
+const embeddedManifest = {
+  appId: 'com.kuberansilks.compass',
+  version: APP_VERSION,
+  buildId: `${APP_VERSION}+${shortHash}`,
+  hash: contentHash,
+  minNativeVersionCode: 1,
+  builtAt
+};
+fs.writeFileSync(path.join(distDir, 'ota-manifest.json'), JSON.stringify(embeddedManifest, null, 2) + '\n', 'utf8');
+
+// Pure-Node deterministic PKZIP builder (guaranteed POSIX '/' paths for Android ZipInputStream)
+const crcTable = new Uint32Array(256);
+for (let n = 0; n < 256; n++) {
+  let c = n;
+  for (let k = 0; k < 8; k++) {
+    c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+  }
+  crcTable[n] = c >>> 0;
+}
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    c = crcTable[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+function createZipBuffer(files) {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  files.forEach(({ fullPath, relPath }) => {
+    const raw = fs.readFileSync(fullPath);
+    const compressed = zlib.deflateRawSync(raw, { level: 9 });
+    const nameBuf = Buffer.from(relPath, 'utf8');
+    const crc = crc32(raw);
+
+    // Local File Header (30 bytes + name)
+    const localHdr = Buffer.alloc(30);
+    localHdr.writeUInt32LE(0x04034b50, 0); // signature
+    localHdr.writeUInt16LE(20, 4);         // version needed
+    localHdr.writeUInt16LE(0x0800, 6);     // UTF-8 flag
+    localHdr.writeUInt16LE(8, 8);          // method: deflate
+    localHdr.writeUInt16LE(0, 10);         // mod time
+    localHdr.writeUInt16LE(0x5421, 12);    // mod date
+    localHdr.writeUInt32LE(crc, 14);
+    localHdr.writeUInt32LE(compressed.length, 18);
+    localHdr.writeUInt32LE(raw.length, 22);
+    localHdr.writeUInt16LE(nameBuf.length, 26);
+    localHdr.writeUInt16LE(0, 28);         // extra len
+
+    localParts.push(localHdr, nameBuf, compressed);
+
+    // Central Directory Header (46 bytes + name)
+    const centralHdr = Buffer.alloc(46);
+    centralHdr.writeUInt32LE(0x02014b50, 0); // signature
+    centralHdr.writeUInt16LE(20, 4);         // version made by
+    centralHdr.writeUInt16LE(20, 6);         // version needed
+    centralHdr.writeUInt16LE(0x0800, 8);     // UTF-8 flag
+    centralHdr.writeUInt16LE(8, 10);         // deflate
+    centralHdr.writeUInt16LE(0, 12);
+    centralHdr.writeUInt16LE(0x5421, 14);
+    centralHdr.writeUInt32LE(crc, 16);
+    centralHdr.writeUInt32LE(compressed.length, 20);
+    centralHdr.writeUInt32LE(raw.length, 24);
+    centralHdr.writeUInt16LE(nameBuf.length, 28);
+    centralHdr.writeUInt16LE(0, 30);         // extra len
+    centralHdr.writeUInt16LE(0, 32);         // comment len
+    centralHdr.writeUInt16LE(0, 34);         // disk start
+    centralHdr.writeUInt16LE(0, 36);         // internal attr
+    centralHdr.writeUInt32LE(0, 38);         // external attr
+    centralHdr.writeUInt32LE(offset, 42);    // local header offset
+
+    centralParts.push(centralHdr, nameBuf);
+    offset += localHdr.length + nameBuf.length + compressed.length;
+  });
+
+  const centralDirBuf = Buffer.concat(centralParts);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(files.length, 8);
+  eocd.writeUInt16LE(files.length, 10);
+  eocd.writeUInt32LE(centralDirBuf.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  eocd.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localParts, centralDirBuf, eocd]);
+}
+
+const zipFiles = collectFilesRecursive(distDir, distDir);
+const otaZipBuf = createZipBuffer(zipFiles);
+const otaZipPath = path.join(rootDir, 'ota-bundle.zip');
+fs.writeFileSync(otaZipPath, otaZipBuf);
+
+const zipSha256 = crypto.createHash('sha256').update(otaZipBuf).digest('hex');
+const publicManifest = {
+  ...embeddedManifest,
+  bundleUrl: `${OTA_BASE_URL}/ota-bundle.zip`,
+  sha256: zipSha256,
+  sizeBytes: otaZipBuf.length,
+  releaseNotes: 'Kuberan Compass live web update (60fps engine, AR HUD, Celestial & GPX)'
+};
+fs.writeFileSync(path.join(rootDir, 'ota-manifest.json'), JSON.stringify(publicManifest, null, 2) + '\n', 'utf8');
+
+console.log(`✓ Created ota-bundle.zip (${(otaZipBuf.length / 1024).toFixed(1)} KB, SHA-256: ${zipSha256.slice(0, 12)}...)`);
+console.log(`✓ Created ota-manifest.json (Build ID: ${publicManifest.buildId})`);
+console.log('\n✓ ALL JAVASCRIPT ENGINES OBFUSCATED & PACKAGED FOR STORE + OTA DISTRIBUTION!');

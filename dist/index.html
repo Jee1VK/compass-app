@@ -118,6 +118,21 @@
     </div>
   </div>
 
+  <!-- Native PWA-Style Over-The-Air (OTA) Live Update Banner -->
+  <div id="otaUpdateBanner" class="ota-banner hidden" role="status" aria-live="polite">
+    <div class="ota-banner-body">
+      <span class="ota-banner-icon">✨</span>
+      <div class="ota-banner-text">
+        <strong id="otaBannerTitle">Live Update Ready</strong>
+        <span id="otaBannerMsg">A verified update has been downloaded. Reload to apply instantly.</span>
+      </div>
+      <div class="ota-banner-actions">
+        <button id="btnOtaReloadNow" class="btn-ota-apply">Apply Now</button>
+        <button id="btnOtaDismiss" class="btn-ota-later" aria-label="Apply on next launch">Later</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Primary Application Wrapper -->
   <main class="app-container" id="app">
     <!-- Top Header Bar -->
@@ -1008,6 +1023,22 @@
             <li>📳 Haptic Vibration feedback on Cardinal headings</li>
             <li>🎨 4 Visual Themes: Tactical OLED, Apple Glass, Marine Brass, Red Night</li>
           </ul>
+        </div>
+
+        <!-- Native Over-The-Air (OTA) Live Update Panel -->
+        <div id="otaStatusCard" class="ota-status-card hidden">
+          <div class="ota-status-header">
+            <div>
+              <strong>⚡ Live Over-The-Air (OTA) Updates</strong>
+              <span id="otaModeBadge" class="ota-mode-badge">Built-in APK</span>
+            </div>
+            <span id="otaVersionMeta" class="ota-version-meta">v5.1.0</span>
+          </div>
+          <p id="otaStatusDesc" class="ota-status-desc">Checks automatically for verified web updates over HTTPS without reinstalling the APK.</p>
+          <div class="ota-status-actions">
+            <button id="btnOtaCheckNow" class="btn-ota-check" type="button">🔄 Check for Live Update</button>
+            <button id="btnOtaResetBuiltin" class="btn-ota-reset hidden" type="button">Reset to Built-in</button>
+          </div>
         </div>
 
         <div class="app-version">

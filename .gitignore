@@ -22,5 +22,10 @@ ios/App/DerivedData/
 kuberan-release-key.p12
 signing.properties
 
+# Local binary exports (APK / AAB kept on NAS, outside Git)
+releases/
+*.apk
+*.aab
+
 # Temporary / build files
 *.log
