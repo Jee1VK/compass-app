@@ -1,12 +1,12 @@
 {
   "appId": "com.kuberansilks.compass",
   "version": "5.1.0",
-  "buildId": "5.1.0+58e4e9ec",
-  "hash": "58e4e9ec2e6b68308934919ca850104a427edb760c15d2c27dbfee3d589674ae",
+  "buildId": "5.1.0+451c638a",
+  "hash": "451c638a08cfa20fe26c2c59dc2399a9dfcd4bf786e4b3b95839b8dfb76afafe",
   "minNativeVersionCode": 1,
-  "builtAt": "2026-11-23T07:06:20.367Z",
+  "builtAt": "2026-11-23T07:31:16.840Z",
   "bundleUrl": "https://jee1vk.github.io/compass-app/ota-bundle.zip",
-  "sha256": "316de20a5dd1dc6e79c05c4f9a04eda856b9c402cac817efda9e01d2dae9bf2f",
-  "sizeBytes": 651331,
+  "sha256": "0168629284c04b114785208fb86afb3ded13170e5f95eb7ec50710bc8f0ad8cf",
+  "sizeBytes": 633333,
   "releaseNotes": "Kuberan Compass live web update (60fps engine, AR HUD, Celestial & GPX)"
 }

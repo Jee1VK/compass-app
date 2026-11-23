@@ -1,8 +1,8 @@
 {
   "appId": "com.kuberansilks.compass",
   "version": "5.1.0",
-  "buildId": "5.1.0+58e4e9ec",
-  "hash": "58e4e9ec2e6b68308934919ca850104a427edb760c15d2c27dbfee3d589674ae",
+  "buildId": "5.1.0+451c638a",
+  "hash": "451c638a08cfa20fe26c2c59dc2399a9dfcd4bf786e4b3b95839b8dfb76afafe",
   "minNativeVersionCode": 1,
-  "builtAt": "2026-11-23T07:06:20.367Z"
+  "builtAt": "2026-11-23T07:31:16.840Z"
 }
